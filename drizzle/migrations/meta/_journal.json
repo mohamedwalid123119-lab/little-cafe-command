@@ -1,5 +1,13 @@
 {
   "version": "7",
   "dialect": "postgresql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794243242942,
+      "tag": "0000_cafe_os_stage1_foundation",
+      "breakpoints": true
+    }
+  ]
 }
