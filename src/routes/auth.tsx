@@ -11,12 +11,12 @@ import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
 import { friendlyError } from "@/lib/errors";
 
-type AuthSearch = { mode?: "signin" | "signup" | "forgot"; redirect?: string };
+type AuthSearch = { mode?: "signin" | "signup" | "forgot" | undefined; redirect?: string | undefined };
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>): AuthSearch => ({
-    mode: s.mode === "signup" || s.mode === "forgot" ? s.mode : undefined,
-    redirect: typeof s.redirect === "string" && s.redirect.startsWith("/") && !s.redirect.startsWith("//") ? s.redirect : undefined,
+    mode: s["mode"] === "signup" || s["mode"] === "forgot" ? s["mode"] : undefined,
+    redirect: safeRedirect(s["redirect"]),
   }),
   head: () => ({
     meta: [
@@ -30,6 +30,10 @@ export const Route = createFileRoute("/auth")({
   }),
   component: AuthPage,
 });
+
+function safeRedirect(v: unknown): string | undefined {
+  return typeof v === "string" && v.startsWith("/") && !v.startsWith("//") ? v : undefined;
+}
 
 function AuthPage() {
   const search = Route.useSearch();
@@ -65,7 +69,10 @@ function AuthPage() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const password = String(f.get("password"));
-    if (password.length < 8) return toast.error("كلمة المرور يجب أن تكون 8 أحرف على الأقل");
+    if (password.length < 8) {
+      toast.error("كلمة المرور يجب أن تكون 8 أحرف على الأقل");
+      return;
+    }
     const email = String(f.get("email")).trim();
     setBusy(true);
     const { data, error } = await supabase.auth.signUp({
@@ -74,7 +81,10 @@ function AuthPage() {
       options: { emailRedirectTo: window.location.origin + "/app", data: { full_name: String(f.get("full_name")).trim() } },
     });
     setBusy(false);
-    if (error) return toast.error(friendlyError(error));
+    if (error) {
+      toast.error(friendlyError(error));
+      return;
+    }
     if (!data.session) setSentConfirm(email);
   }
 
@@ -86,7 +96,10 @@ function AuthPage() {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     setBusy(false);
-    if (error) return toast.error(friendlyError(error));
+    if (error) {
+      toast.error(friendlyError(error));
+      return;
+    }
     toast.success("أرسلنا رابط إعادة تعيين كلمة المرور إلى بريدك");
   }
 
