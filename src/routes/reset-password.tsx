@@ -43,12 +43,21 @@ function ResetPassword() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const password = String(f.get("password"));
-    if (password.length < 8) return toast.error("كلمة المرور يجب أن تكون 8 أحرف على الأقل");
-    if (password !== String(f.get("confirm"))) return toast.error("كلمتا المرور غير متطابقتين");
+    if (password.length < 8) {
+      toast.error("كلمة المرور يجب أن تكون 8 أحرف على الأقل");
+      return;
+    }
+    if (password !== String(f.get("confirm"))) {
+      toast.error("كلمتا المرور غير متطابقتين");
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ password });
     setBusy(false);
-    if (error) return toast.error(friendlyError(error));
+    if (error) {
+      toast.error(friendlyError(error));
+      return;
+    }
     toast.success("تم تغيير كلمة المرور");
     navigate({ to: "/app", replace: true });
   }
