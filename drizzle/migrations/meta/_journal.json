@@ -15,6 +15,13 @@
       "when": 1794243295467,
       "tag": "0001_cost_snapshot_ordering",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794531270332,
+      "tag": "0002_operations_foundation",
+      "breakpoints": true
     }
   ]
 }
