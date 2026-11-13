@@ -28,3 +28,7 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project rules
+- All business tables key on `tenant_id` with composite `(child_id, tenant_id)` foreign keys, and RLS uses `has_module`/`can_write` from `memberships`; never add a parallel `businesses`/profile-role model, because roles on profiles allow self-promotion and would split tenancy.
+- Stock is an append-only signed ledger (`inventory_movements`) with current stock derived in `v_ingredient_stock`; corrections are new adjustment rows so history stays auditable.
