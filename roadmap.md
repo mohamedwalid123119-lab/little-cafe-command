@@ -13,6 +13,10 @@
 - [ ] Settings (cafe, VAT, target food cost, branches, subscription, team view)
 - [ ] Tests for cost formulas and role permissions
 
+## Stage 2 groundwork
+- [x] Database for suppliers, purchases, stock ledger, cash shifts, orders, expenses (no screens yet)
+- [ ] Automatic stock deduction on sale, purchase receiving into stock, financial reports (next step)
+
 ## Blocked / waiting on user
 - Real subscription prices (current 499 / 999 / 1,999 EGP are placeholders)
 - Staff invitations (needs email sending; later stage)
