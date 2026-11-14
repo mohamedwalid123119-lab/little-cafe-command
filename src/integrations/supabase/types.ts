@@ -335,6 +335,7 @@ export type Database = {
           purchase_price: number
           purchase_quantity: number
           purchase_unit: string
+          reorder_level: number | null
           sku: string | null
           tenant_id: string
           updated_at: string
@@ -353,6 +354,7 @@ export type Database = {
           purchase_price: number
           purchase_quantity: number
           purchase_unit: string
+          reorder_level?: number | null
           sku?: string | null
           tenant_id: string
           updated_at?: string
@@ -371,6 +373,7 @@ export type Database = {
           purchase_price?: number
           purchase_quantity?: number
           purchase_unit?: string
+          reorder_level?: number | null
           sku?: string | null
           tenant_id?: string
           updated_at?: string
@@ -589,6 +592,7 @@ export type Database = {
           product_name: string
           quantity: number
           tenant_id: string
+          unit_cost: number | null
           unit_price: number
           variant_id: string | null
         }
@@ -602,6 +606,7 @@ export type Database = {
           product_name: string
           quantity: number
           tenant_id: string
+          unit_cost?: number | null
           unit_price: number
           variant_id?: string | null
         }
@@ -615,6 +620,7 @@ export type Database = {
           product_name?: string
           quantity?: number
           tenant_id?: string
+          unit_cost?: number | null
           unit_price?: number
           variant_id?: string | null
         }
@@ -1709,6 +1715,18 @@ export type Database = {
         Args: { _module: string; _tenant: string }
         Returns: boolean
       }
+      create_sale: {
+        Args: {
+          _branch: string
+          _discount?: number
+          _items: Json
+          _notes?: string
+          _order_type?: string
+          _payment_method?: string
+          _tenant: string
+        }
+        Returns: string
+      }
       create_tenant: {
         Args: {
           _branch_name?: string
@@ -1718,6 +1736,15 @@ export type Database = {
           _phone?: string
         }
         Returns: string
+      }
+      dashboard_overview: {
+        Args: {
+          _branch?: string
+          _from?: string
+          _tenant: string
+          _to?: string
+        }
+        Returns: Json
       }
       duplicate_recipe: {
         Args: { _name: string; _source: string }
@@ -1736,11 +1763,22 @@ export type Database = {
       }
       is_tenant_member: { Args: { _tenant: string }; Returns: boolean }
       is_tenant_owner: { Args: { _tenant: string }; Returns: boolean }
+      period_kpis: {
+        Args: { _branch: string; _from: string; _tenant: string; _to: string }
+        Returns: Json
+      }
       recalc_recipe: {
         Args: { _reason?: string; _recipe: string }
         Returns: undefined
       }
       recalc_tenant_recipes: { Args: { _tenant: string }; Returns: number }
+      recipe_consumption: {
+        Args: { _portions: number; _recipe: string }
+        Returns: {
+          ingredient_id: string
+          quantity: number
+        }[]
+      }
       role_default_modules: {
         Args: { _role: Database["public"]["Enums"]["tenant_role"] }
         Returns: string[]
@@ -1751,6 +1789,10 @@ export type Database = {
       unit_dim: {
         Args: { _code: string }
         Returns: Database["public"]["Enums"]["unit_dimension"]
+      }
+      void_order: {
+        Args: { _order: string; _reason: string }
+        Returns: undefined
       }
     }
     Enums: {
