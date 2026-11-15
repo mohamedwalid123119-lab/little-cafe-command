@@ -5,7 +5,8 @@
 - [x] Arabic RTL design system + landing page
 - [x] Auth: email/password, Google, Lovable, password reset
 - [x] Mobile-friendly app shell: side menu with a page per section, active highlight, back/forward
-- [ ] Cafe onboarding (real cafe), cafe + branch switcher
+- [x] Create-your-first-cafe page (name, phone, address, currency)
+- [ ] Cafe + branch switcher
 - [ ] Management dashboard: sales/profit/expenses, top products, stock + low-stock alerts, staff & shifts, daily/monthly summary
 - [ ] Ingredients + stock page (reorder levels, receive/waste/count)
 - [ ] Recipes list + editor (sub-recipes, optional, packaging, waste, yield)
