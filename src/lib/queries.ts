@@ -9,6 +9,19 @@ async function run<T>(p: PromiseLike<{ data: T | null; error: unknown }>): Promi
 }
 
 export const q = {
+  myMemberships: (userId: string) =>
+    queryOptions({
+      queryKey: ["my-memberships", userId],
+      queryFn: () =>
+        run(
+          supabase
+            .from("memberships")
+            .select("id, tenant_id, role, modules, tenant:tenants(name)")
+            .eq("user_id", userId)
+            .eq("is_active", true)
+            .order("created_at"),
+        ),
+    }),
   units: () =>
     queryOptions({
       queryKey: ["units"],

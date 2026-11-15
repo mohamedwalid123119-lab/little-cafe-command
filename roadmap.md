@@ -4,7 +4,8 @@
 - [x] Backend: tenants, roles/permissions, products, ingredients, recipes, costing engine
 - [x] Arabic RTL design system + landing page
 - [x] Auth: email/password, Google, Lovable, password reset
-- [ ] Cafe onboarding (real cafe), cafe + branch switcher, mobile app shell
+- [x] Mobile-friendly app shell: side menu with a page per section, active highlight, back/forward
+- [ ] Cafe onboarding (real cafe), cafe + branch switcher
 - [ ] Management dashboard: sales/profit/expenses, top products, stock + low-stock alerts, staff & shifts, daily/monthly summary
 - [ ] Ingredients + stock page (reorder levels, receive/waste/count)
 - [ ] Recipes list + editor (sub-recipes, optional, packaging, waste, yield)
