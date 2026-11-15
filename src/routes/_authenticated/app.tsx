@@ -1,28 +1,31 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
-import { Coffee } from "lucide-react";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 
-import { Button } from "@/components/ui/button";
+import { AppSidebar } from "@/components/app-sidebar";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
+import { activeNavItem, NAV_ITEMS } from "@/lib/nav";
+import { hasModule, type TenantRole } from "@/lib/permissions";
+import { q } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/app")({
-  head: () => ({
-    meta: [
-      { title: "لوحة التحكم — CAFE OS" },
-      { name: "description", content: "لوحة تحكم الكافيه في CAFE OS." },
-      { property: "og:title", content: "لوحة التحكم — CAFE OS" },
-      { property: "og:description", content: "لوحة تحكم الكافيه في CAFE OS." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
-  component: AppHome,
+  loader: ({ context }) => context.queryClient.ensureQueryData(q.myMemberships(context.user.id)),
+  component: AppLayout,
 });
 
-function AppHome() {
+function AppLayout() {
   const { user } = Route.useRouteContext();
+  const { data: memberships } = useSuspenseQuery(q.myMemberships(user.id));
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  const membership = memberships[0];
+  const items = membership
+    ? NAV_ITEMS.filter((i) => hasModule({ role: membership.role as TenantRole, modules: membership.modules }, i.module))
+    : NAV_ITEMS;
+  const current = activeNavItem(pathname);
+  const tenantName = (membership?.tenant as { name?: string } | null)?.name;
 
   async function signOut() {
     await queryClient.cancelQueries();
@@ -32,17 +35,18 @@ function AppHome() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md rounded-xl border bg-card p-6 text-center">
-        <Coffee className="mx-auto size-8 text-primary" />
-        <h1 className="mt-3 text-xl font-semibold">أهلاً بك في CAFE OS</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          تم تسجيل الدخول باسم <span dir="ltr">{user.email}</span>. شاشات إدارة الكافيه قيد الإنشاء.
-        </p>
-        <Button variant="outline" className="mt-5" onClick={signOut}>
-          تسجيل الخروج
-        </Button>
-      </div>
-    </div>
+    <SidebarProvider>
+      <AppSidebar items={items} onSignOut={signOut} />
+      <SidebarInset>
+        <header className="sticky top-0 z-10 flex h-12 items-center gap-2 border-b bg-background px-3">
+          <SidebarTrigger />
+          <span className="truncate font-semibold">{current?.title ?? "CAFE OS"}</span>
+          {tenantName && <span className="ms-auto truncate text-sm text-muted-foreground">{tenantName}</span>}
+        </header>
+        <main className="flex-1">
+          <Outlet />
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
