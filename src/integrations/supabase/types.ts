@@ -1715,6 +1715,15 @@ export type Database = {
         Args: { _module: string; _tenant: string }
         Returns: boolean
       }
+      create_cafe: {
+        Args: {
+          _address?: string
+          _currency?: string
+          _name: string
+          _phone?: string
+        }
+        Returns: string
+      }
       create_sale: {
         Args: {
           _branch: string
