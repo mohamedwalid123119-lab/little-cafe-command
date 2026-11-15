@@ -61,9 +61,9 @@ function Onboarding() {
     const v = parsed.data;
     const { error } = await supabase.rpc("create_cafe", {
       _name: v.name,
-      _phone: v.phone || undefined,
-      _address: v.address || undefined,
       _currency: v.currency,
+      ...(v.phone ? { _phone: v.phone } : {}),
+      ...(v.address ? { _address: v.address } : {}),
     });
     if (error) {
       setBusy(false);
@@ -123,7 +123,7 @@ function Onboarding() {
   );
 }
 
-function Field({ label, name, error, hint, required, children }: { label: string; name: string; error?: string; hint?: string; required?: boolean; children: React.ReactNode }) {
+function Field({ label, name, error, hint, required, children }: { label: string; name: string; error?: string | undefined; hint?: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={name}>
