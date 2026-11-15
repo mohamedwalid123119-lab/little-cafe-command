@@ -70,7 +70,8 @@ function Onboarding() {
       toast.error(friendlyError(error));
       return;
     }
-    await queryClient.invalidateQueries({ queryKey: ["my-memberships", user.id] });
+    // Refresh the cached membership so the dashboard sees the new cafe right away.
+    await queryClient.fetchQuery(q.myMemberships(user.id));
     toast.success("تم إنشاء الكافيه بنجاح");
     navigate({ to: "/app", replace: true });
   }
