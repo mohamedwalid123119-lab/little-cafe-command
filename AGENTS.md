@@ -32,3 +32,4 @@ use the editor.
 ## Project rules
 - All business tables key on `tenant_id` with composite `(child_id, tenant_id)` foreign keys, and RLS uses `has_module`/`can_write` from `memberships`; never add a parallel `businesses`/profile-role model, because roles on profiles allow self-promotion and would split tenancy.
 - Stock is an append-only signed ledger (`inventory_movements`) with current stock derived in `v_ingredient_stock`; corrections are new adjustment rows so history stays auditable.
+- App sections live under `/app/*` as one route file each, rendered inside the sidebar layout in `_authenticated/app.tsx`; the sidebar list comes only from `src/lib/nav.ts` (one entry per `MODULES` key, guarded by a routing test) so menu, highlighting and pages can't drift apart.
