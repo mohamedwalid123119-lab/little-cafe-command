@@ -1,6 +1,7 @@
 import {
   BarChart3,
-  Boxes,
+  Package,
+  Warehouse,
   Calculator,
   ChefHat,
   Coffee,
@@ -39,10 +40,10 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { module: "dashboard", path: "/app", icon: LayoutDashboard, description: "ملخص المبيعات والأرباح والمصروفات والمخزون." },
   { module: "pos", path: "/app/pos", icon: Coffee, description: "تسجيل الطلبات والبيع خلال الوردية." },
-  { module: "products", path: "/app/products", icon: Boxes, description: "المنتجات والأقسام والأحجام والإضافات." },
+  { module: "products", path: "/app/products", icon: Package, description: "المنتجات والأقسام والأحجام والإضافات." },
   { module: "recipes", path: "/app/recipes", icon: ChefHat, description: "الريسبيات والتحضيرات ومكوناتها." },
   { module: "cost", path: "/app/cost", icon: Calculator, description: "تكلفة كل منتج وهامش الربح والسعر المقترح." },
-  { module: "inventory", path: "/app/inventory", icon: Boxes, description: "الخامات والكميات المتاحة وتنبيهات النقص." },
+  { module: "inventory", path: "/app/inventory", icon: Warehouse, description: "الخامات والكميات المتاحة وتنبيهات النقص." },
   { module: "purchasing", path: "/app/purchasing", icon: ShoppingCart, description: "فواتير الشراء واستلام البضاعة." },
   { module: "suppliers", path: "/app/suppliers", icon: Truck, description: "بيانات الموردين." },
   { module: "expenses", path: "/app/expenses", icon: Wallet, description: "مصروفات الكافيه حسب النوع." },
