@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 
 import { AppSidebar } from "@/components/app-sidebar";
@@ -9,7 +9,11 @@ import { hasModule, type TenantRole } from "@/lib/permissions";
 import { q } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/app")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(q.myMemberships(context.user.id)),
+  // A signed-in user without a cafe is sent to create one first.
+  beforeLoad: async ({ context }) => {
+    const memberships = await context.queryClient.ensureQueryData(q.myMemberships(context.user.id));
+    if (memberships.length === 0) throw redirect({ to: "/onboarding", replace: true });
+  },
   component: AppLayout,
 });
 
