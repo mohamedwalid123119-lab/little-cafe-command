@@ -9,7 +9,7 @@ import { q } from "@/lib/queries";
 const authRoute = getRouteApi("/_authenticated");
 
 /** Standalone page frame for one sidebar section; checks the user's access to that module. */
-export function ModulePage({ module, children }: { module: ModuleKey; children?: ReactNode }) {
+export function ModulePage({ module, children, wide }: { module: ModuleKey; children?: ReactNode; wide?: boolean }) {
   const { user } = authRoute.useRouteContext();
   const { data: memberships } = useSuspenseQuery(q.myMemberships(user.id));
   const membership = memberships[0];
@@ -17,7 +17,7 @@ export function ModulePage({ module, children }: { module: ModuleKey; children?:
   const allowed = !membership || hasModule({ role: membership.role as TenantRole, modules: membership.modules }, module);
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
+    <div className={`mx-auto w-full p-4 md:p-6 ${wide ? "max-w-7xl" : "max-w-5xl"}`}>
       <div className="flex items-start gap-3">
         <item.icon className="mt-1 size-6 shrink-0 text-primary" />
         <div>
@@ -26,6 +26,9 @@ export function ModulePage({ module, children }: { module: ModuleKey; children?:
         </div>
       </div>
 
+      {wide && allowed && membership ? (
+        <div className="mt-6">{children}</div>
+      ) : (
       <div className="mt-6 rounded-xl border bg-card p-6 text-sm text-muted-foreground">
         {!allowed ? (
           <p>ليس لديك صلاحية لفتح هذا القسم. اطلب من مالك الكافيه تفعيله لحسابك.</p>
@@ -35,6 +38,7 @@ export function ModulePage({ module, children }: { module: ModuleKey; children?:
           (children ?? <p>شاشة هذا القسم قيد الإنشاء، وستعرض بيانات كافيهك الحقيقية فور تجهيزها.</p>)
         )}
       </div>
+      )}
     </div>
   );
 }

@@ -16,10 +16,48 @@ export const q = {
         run(
           supabase
             .from("memberships")
-            .select("id, tenant_id, role, modules, tenant:tenants(name)")
+            .select("id, tenant_id, role, modules, branch_id, tenant:tenants(name)")
             .eq("user_id", userId)
             .eq("is_active", true)
             .order("created_at"),
+        ),
+    }),
+  posCatalog: (t: string) =>
+    queryOptions({
+      queryKey: ["pos-catalog", t],
+      queryFn: async () => {
+        const [categories, products] = await Promise.all([
+          run(supabase.from("categories").select("id, name").eq("tenant_id", t).eq("is_active", true).order("sort_order").order("name")),
+          run(
+            supabase
+              .from("products")
+              .select("id, name, category_id, product_variants(id, name, temperature, selling_price, recipe_id, is_active, is_default, sort_order)")
+              .eq("tenant_id", t)
+              .eq("is_active", true)
+              .order("sort_order")
+              .order("name"),
+          ),
+        ]);
+        return { categories, products };
+      },
+    }),
+  openSession: (t: string, branch: string) =>
+    queryOptions({
+      queryKey: ["pos-open-session", t, branch],
+      queryFn: () =>
+        run(supabase.from("cash_sessions").select("*").eq("tenant_id", t).eq("branch_id", branch).eq("status", "open").maybeSingle()),
+    }),
+  sessionOrders: (sessionId: string) =>
+    queryOptions({
+      queryKey: ["pos-session-orders", sessionId],
+      queryFn: () =>
+        run(
+          supabase
+            .from("orders")
+            .select("id, order_number, order_type, status, total, payment_method, created_at, order_items(product_name, quantity)")
+            .eq("cash_session_id", sessionId)
+            .order("created_at", { ascending: false })
+            .limit(100),
         ),
     }),
   units: () =>
