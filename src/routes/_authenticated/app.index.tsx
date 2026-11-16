@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
+import type { Tables } from "@/integrations/supabase/types";
 import { ModulePage } from "@/components/module-page";
 import { dateOnly } from "@/lib/format";
 import { ROLE_LABELS, type TenantRole } from "@/lib/permissions";
@@ -71,7 +72,8 @@ function Page() {
 type SubscriptionInfo = { status: string; trial_ends_at: string | null; plan: { name_ar?: string } | null };
 
 function CafeInfo({ tenantId, role }: { tenantId: string; role: TenantRole }) {
-  const { data: tenant } = useSuspenseQuery(q.tenant(tenantId));
+  const { data: tenantData } = useSuspenseQuery(q.tenant(tenantId));
+  const tenant = tenantData as Tables<"tenants"> | null;
   const { data: branches } = useSuspenseQuery(q.branches(tenantId));
   const { data: subscriptionData } = useSuspenseQuery(q.subscription(tenantId));
   // Readable only by users with the settings module (RLS); otherwise null.
