@@ -92,11 +92,11 @@ function Onboarding() {
             <Field label="اسم الكافيه" name="name" error={errors.name} required>
               <Input id="name" name="name" dir="auto" maxLength={120} autoComplete="organization" aria-invalid={!!errors.name} />
             </Field>
-            <Field label="رقم الهاتف" name="phone" error={errors.phone} hint="اختياري">
-              <Input id="phone" name="phone" type="tel" dir="ltr" maxLength={30} autoComplete="tel" inputMode="tel" placeholder="01xxxxxxxxx" aria-invalid={!!errors.phone} />
-            </Field>
             <Field label="العنوان" name="address" error={errors.address} hint="اختياري — عنوان الفرع الرئيسي">
               <Input id="address" name="address" dir="auto" maxLength={200} autoComplete="street-address" aria-invalid={!!errors.address} />
+            </Field>
+            <Field label="رقم الهاتف" name="phone" error={errors.phone} hint="اختياري">
+              <Input id="phone" name="phone" type="tel" dir="ltr" maxLength={30} autoComplete="tel" inputMode="tel" placeholder="01xxxxxxxxx" aria-invalid={!!errors.phone} />
             </Field>
             <Field label="العملة" name="currency" error={errors.currency} hint="لا يمكن تغيير العملة بعد إنشاء الكافيه">
               <Select value={currency} onValueChange={setCurrency}>
