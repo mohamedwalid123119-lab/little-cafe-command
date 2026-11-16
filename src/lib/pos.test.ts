@@ -8,7 +8,7 @@ describe("cart", () => {
   it("adding the same product twice increases its quantity", () => {
     const c = addToCart(addToCart([], latte), latte);
     expect(c).toHaveLength(1);
-    expect(c[0].quantity).toBe(2);
+    expect(c[0]?.quantity).toBe(2);
   });
   it("setting quantity to zero removes the line", () => {
     const c = setQuantity(addToCart([], latte), "v1", 0);
@@ -19,7 +19,7 @@ describe("cart", () => {
     expect(c.map((l) => l.variantId)).toEqual(["v2"]);
   });
   it("quantity is capped at 1000 per line", () => {
-    expect(setQuantity(addToCart([], latte), "v1", 5000)[0].quantity).toBe(1000);
+    expect(setQuantity(addToCart([], latte), "v1", 5000)[0]?.quantity).toBe(1000);
   });
   it("counts items and builds the sale payload", () => {
     const c: CartLine[] = addToCart(addToCart([], latte, 2), esp);
