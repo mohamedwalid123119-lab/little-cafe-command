@@ -68,14 +68,19 @@ function Page() {
   );
 }
 
+type SubscriptionInfo = { status: string; trial_ends_at: string | null; plan: { name_ar?: string } | null };
+
 function CafeInfo({ tenantId, role }: { tenantId: string; role: TenantRole }) {
   const { data: tenant } = useSuspenseQuery(q.tenant(tenantId));
   const { data: branches } = useSuspenseQuery(q.branches(tenantId));
-  const { data: subscription } = useSuspenseQuery(q.subscription(tenantId));
+  const { data: subscriptionData } = useSuspenseQuery(q.subscription(tenantId));
+  // Readable only by users with the settings module (RLS); otherwise null.
+  const subscription = subscriptionData as SubscriptionInfo | null;
+  if (!tenant) return <p>تعذّر العثور على بيانات الكافيه.</p>;
 
   const mainBranch = branches.find((b) => b.is_main) ?? branches[0];
   const activeBranches = branches.filter((b) => b.is_active).length;
-  const plan = (subscription?.plan as { name_ar?: string } | null) ?? null;
+  const plan = subscription?.plan ?? null;
 
   const rows: { label: string; value: string; ltr?: boolean }[] = [
     { label: "الهاتف", value: tenant.phone || mainBranch?.phone || "—", ltr: true },
@@ -100,7 +105,7 @@ function CafeInfo({ tenantId, role }: { tenantId: string; role: TenantRole }) {
         {rows.map((r) => (
           <div key={r.label} className="min-w-0">
             <dt className="text-xs text-muted-foreground">{r.label}</dt>
-            <dd className="mt-0.5 truncate font-medium" dir={r.ltr ? "ltr" : undefined} style={r.ltr ? { textAlign: "right" } : undefined}>
+            <dd className={`mt-0.5 truncate font-medium ${r.ltr ? "text-right" : ""}`} dir={r.ltr ? "ltr" : undefined}>
               {r.value}
             </dd>
           </div>
