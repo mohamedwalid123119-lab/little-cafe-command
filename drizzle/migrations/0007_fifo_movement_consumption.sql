@@ -249,3 +249,8 @@ begin
 
 end;
 $function$;
+revoke all on function public.void_order(uuid, text)
+from public, anon, authenticated;
+
+grant execute on function public.void_order(uuid, text)
+to authenticated;
