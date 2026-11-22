@@ -1,6 +1,11 @@
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { useState } from "react";
 
 import { ModulePage } from "@/components/module-page";
@@ -9,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/app/suppliers")({
   head: () => ({
-    meta: [{ title: "الموردين — CAFE OS" }],
+    meta: [{ title: "الموردون — CAFE OS" }],
   }),
   component: Page,
 });
@@ -20,12 +25,18 @@ function Page() {
   const { user } = authRoute.useRouteContext();
   const { data: memberships } = useSuspenseQuery(q.myMemberships(user.id));
   const tenantId = memberships[0]?.tenant_id ?? "";
+
   const queryClient = useQueryClient();
 
-  const { data: suppliers = [], isLoading } = useQuery({
+  const {
+    data: suppliers = [],
+    isLoading,
+  } = useQuery({
     queryKey: ["suppliers", tenantId],
     enabled: Boolean(tenantId),
     queryFn: async () => {
+      if (!tenantId) return [];
+
       const { data, error } = await supabase
         .from("suppliers")
         .select("*")
@@ -57,6 +68,7 @@ function Page() {
     await queryClient.invalidateQueries({
       queryKey: ["suppliers", tenantId],
     });
+
     await queryClient.invalidateQueries({
       queryKey: ["purchasing-suppliers", tenantId],
     });
@@ -64,6 +76,10 @@ function Page() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!tenantId) {
+        throw new Error("لا يوجد كافيه مرتبط بالحساب");
+      }
+
       const cleanName = name.trim();
 
       if (cleanName.length < 2) {
@@ -96,40 +112,74 @@ function Page() {
         if (error) throw error;
       }
     },
+
     onSuccess: async () => {
-      setMessage(editingId ? "تم تحديث بيانات المورد" : "تمت إضافة المورد");
+      setMessage(
+        editingId
+          ? "تم تحديث بيانات المورد"
+          : "تمت إضافة المورد",
+      );
+
       resetForm();
       await refresh();
     },
-    onError: (error: Error) => setMessage(error.message),
+
+    onError: (error: Error) => {
+      setMessage(error.message);
+    },
   });
 
   const toggleMutation = useMutation({
-    mutationFn: async (supplier: (typeof suppliers)[number]) => {
+    mutationFn: async (
+      supplier: (typeof suppliers)[number],
+    ) => {
+      if (!tenantId) {
+        throw new Error("لا يوجد كافيه مرتبط بالحساب");
+      }
+
       const { error } = await supabase
         .from("suppliers")
-        .update({ is_active: !supplier.is_active })
+        .update({
+          is_active: !supplier.is_active,
+        })
         .eq("id", supplier.id)
         .eq("tenant_id", tenantId);
 
       if (error) throw error;
     },
+
     onSuccess: async () => {
       setMessage("تم تحديث حالة المورد");
       await refresh();
     },
-    onError: (error: Error) => setMessage(error.message),
+
+    onError: (error: Error) => {
+      setMessage(error.message);
+    },
   });
+
+  if (!tenantId) {
+    return (
+      <ModulePage module="suppliers">
+        لا يوجد كافيه مرتبط بحسابك حتى الآن.
+        لا يمكن إضافة أو إدارة الموردين قبل ربط الحساب بكافيه.
+      </ModulePage>
+    );
+  }
 
   const filteredSuppliers = suppliers.filter((supplier) =>
     `${supplier.name} ${supplier.phone ?? ""} ${supplier.address ?? ""}`
       .toLowerCase()
-      .includes(search.toLowerCase()),
+      .includes(search.trim().toLowerCase()),
   );
 
-  const activeCount = suppliers.filter((s) => s.is_active).length;
+  const activeCount = suppliers.filter(
+    (supplier) => supplier.is_active,
+  ).length;
 
-  const startEdit = (supplier: (typeof suppliers)[number]) => {
+  const startEdit = (
+    supplier: (typeof suppliers)[number],
+  ) => {
     setEditingId(supplier.id);
     setName(supplier.name);
     setPhone(supplier.phone ?? "");
@@ -140,20 +190,40 @@ function Page() {
 
   return (
     <ModulePage module="suppliers" wide>
-      <div className="space-y-6">
+      <div dir="rtl" className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold">
+            إدارة الموردين
+          </h2>
+
+          <p className="mt-1 text-sm text-muted-foreground">
+            إدارة بيانات الموردين ومتابعة حالة كل مورد.
+          </p>
+        </div>
+
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border bg-card p-4">
-            <p className="text-sm text-muted-foreground">إجمالي الموردين</p>
-            <p className="mt-2 text-2xl font-bold">{suppliers.length}</p>
+            <p className="text-sm text-muted-foreground">
+              إجمالي الموردين
+            </p>
+            <p className="mt-2 text-2xl font-bold">
+              {suppliers.length}
+            </p>
           </div>
 
           <div className="rounded-xl border bg-card p-4">
-            <p className="text-sm text-muted-foreground">موردون نشطون</p>
-            <p className="mt-2 text-2xl font-bold">{activeCount}</p>
+            <p className="text-sm text-muted-foreground">
+              موردون نشطون
+            </p>
+            <p className="mt-2 text-2xl font-bold text-green-600">
+              {activeCount}
+            </p>
           </div>
 
           <div className="rounded-xl border bg-card p-4">
-            <p className="text-sm text-muted-foreground">موردون متوقفون</p>
+            <p className="text-sm text-muted-foreground">
+              موردون متوقفون
+            </p>
             <p className="mt-2 text-2xl font-bold">
               {suppliers.length - activeCount}
             </p>
@@ -162,9 +232,11 @@ function Page() {
 
         <section className="rounded-xl border bg-card p-4">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-bold">
-              {editingId ? "تعديل بيانات المورد" : "إضافة مورد جديد"}
-            </h2>
+            <h3 className="text-lg font-bold">
+              {editingId
+                ? "تعديل بيانات المورد"
+                : "إضافة مورد جديد"}
+            </h3>
 
             {editingId && (
               <button
@@ -179,10 +251,13 @@ function Page() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium">اسم المورد *</label>
+              <label className="mb-2 block text-sm font-medium">
+                اسم المورد *
+              </label>
+
               <input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(event) => setName(event.target.value)}
                 placeholder="اسم المورد أو الشركة"
                 maxLength={120}
                 className="w-full rounded-lg border bg-background p-3"
@@ -190,10 +265,13 @@ function Page() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium">رقم الهاتف</label>
+              <label className="mb-2 block text-sm font-medium">
+                رقم الهاتف
+              </label>
+
               <input
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(event) => setPhone(event.target.value)}
                 placeholder="رقم التواصل"
                 maxLength={30}
                 className="w-full rounded-lg border bg-background p-3"
@@ -201,10 +279,13 @@ function Page() {
             </div>
 
             <div className="sm:col-span-2">
-              <label className="mb-2 block text-sm font-medium">العنوان</label>
+              <label className="mb-2 block text-sm font-medium">
+                العنوان
+              </label>
+
               <input
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                onChange={(event) => setAddress(event.target.value)}
                 placeholder="عنوان المورد"
                 maxLength={300}
                 className="w-full rounded-lg border bg-background p-3"
@@ -212,10 +293,13 @@ function Page() {
             </div>
 
             <div className="sm:col-span-2">
-              <label className="mb-2 block text-sm font-medium">ملاحظات</label>
+              <label className="mb-2 block text-sm font-medium">
+                ملاحظات
+              </label>
+
               <textarea
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={(event) => setNotes(event.target.value)}
                 placeholder="تفاصيل أو ملاحظات عن المورد"
                 maxLength={500}
                 rows={3}
@@ -241,12 +325,15 @@ function Page() {
           </button>
         </section>
 
-        <section className="rounded-xl border bg-card">
+        <section className="overflow-hidden rounded-xl border bg-card">
           <div className="border-b p-4">
-            <h2 className="text-lg font-bold">قائمة الموردين</h2>
+            <h3 className="font-bold">
+              قائمة الموردين
+            </h3>
+
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
               placeholder="ابحث بالاسم أو الهاتف أو العنوان..."
               className="mt-3 w-full rounded-lg border bg-background p-3"
             />
@@ -270,6 +357,7 @@ function Page() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <strong>{supplier.name}</strong>
+
                       <span
                         className={`rounded-full px-2 py-1 text-xs ${
                           supplier.is_active
@@ -323,7 +411,10 @@ function Page() {
         </section>
 
         {message && (
-          <p role="status" className="rounded-lg bg-muted p-3 text-sm">
+          <p
+            role="status"
+            className="rounded-lg bg-muted p-3 text-sm"
+          >
             {message}
           </p>
         )}
