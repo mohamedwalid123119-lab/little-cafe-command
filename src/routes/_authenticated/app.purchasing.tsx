@@ -473,7 +473,11 @@ function Page() {
                           </p>
                         </div>
                         <strong>
-                          {Number(item.purchase_total ?? item.line_total ?? 0).toLocaleString("ar-EG")} ج.م
+                          {Number(
+                            (item as typeof item & { purchase_total?: number | null }).purchase_total
+                              ?? item.line_total
+                              ?? 0
+                          ).toLocaleString("ar-EG")} ج.م
                         </strong>
                       </div>
                     ))}
