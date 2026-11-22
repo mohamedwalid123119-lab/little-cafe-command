@@ -65,6 +65,13 @@
       "when": 1795360002000,
       "tag": "0008_detailed_profit_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795360003000,
+      "tag": "0009_purchase_item_total_trigger_safety",
+      "breakpoints": true
     }
   ]
 }
