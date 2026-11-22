@@ -32,7 +32,7 @@ function Page() {
   const membership = memberships[0];
 
   return (
-    <ModulePage module="dashboard">
+    <ModulePage module="dashboard" wide>
       {membership && (
         <Dashboard
           tenantId={membership.tenant_id}
