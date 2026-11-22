@@ -2,7 +2,6 @@
 -- CAFE OS: Detailed financial and operational reports.
 -- FIFO-based sales COGS, expenses, product quantities and waste.
 
--- Allow report users to read FIFO cost data through RLS.
 create policy "reports read inventory cost layers"
 on public.inventory_cost_layers
 for select to authenticated
@@ -21,7 +20,6 @@ using (public.has_module(tenant_id, 'reports'));
 create index if not exists idx_inventory_movements_reference_type
 on public.inventory_movements(reference_id, movement_type);
 
--- Detailed report for a date range or one cash shift.
 create or replace function public.detailed_profit_report(
   _tenant uuid,
   _branch uuid,
@@ -91,6 +89,13 @@ begin
   completed_orders as (
     select * from report_orders
     where status = 'completed'
+  ),
+
+  uncosted_items as (
+    select count(*) as item_count
+    from public.order_items oi
+    join completed_orders o on o.id = oi.order_id
+    where oi.unit_cost is null
   ),
 
   sales_summary as (
@@ -235,23 +240,32 @@ begin
       'fifo_cogs', round(f.fifo_cogs, 2),
       'incomplete_fifo_movements', f.incomplete_movements,
       'fifo_complete', f.incomplete_movements = 0,
+      'uncosted_items', u.item_count,
+      'cost_complete',
+        (f.incomplete_movements = 0 and u.item_count = 0),
       'waste_cost_estimate', round(w.estimated_waste_cost, 2),
       'waste_movements', w.waste_movements
     ),
 
     'profit', jsonb_build_object(
       'gross_profit',
-        case when f.incomplete_movements = 0
+        case
+          when f.incomplete_movements = 0 and u.item_count = 0
           then round(s.net_sales - f.fifo_cogs, 2)
-          else null end,
+          else null
+        end,
       'net_profit',
-        case when f.incomplete_movements = 0
+        case
+          when f.incomplete_movements = 0 and u.item_count = 0
           then round(s.net_sales - f.fifo_cogs - e.total_expenses, 2)
-          else null end,
+          else null
+        end,
       'profit_status',
-        case when f.incomplete_movements = 0
-          then 'complete_fifo'
-          else 'incomplete_fifo' end
+        case
+          when f.incomplete_movements = 0 and u.item_count = 0
+          then 'complete'
+          else 'incomplete_costing'
+        end
     ),
 
     'expenses', jsonb_build_object(
@@ -292,6 +306,7 @@ begin
   into v_result
   from sales_summary s
   cross join fifo_summary f
+  cross join uncosted_items u
   cross join waste_summary w
   cross join expense_summary e
   cross join shift_details sd;
