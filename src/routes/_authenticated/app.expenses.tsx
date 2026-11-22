@@ -40,6 +40,7 @@ const expenseCategories = [
 function today() {
   const date = new Date();
   const offset = date.getTimezoneOffset();
+
   return new Date(date.getTime() - offset * 60000)
     .toISOString()
     .slice(0, 10);
@@ -50,6 +51,18 @@ function money(value: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })} ج.م`;
+}
+
+function paymentMethodLabel(value: string | null) {
+  const labels: Record<string, string> = {
+    cash: "نقدي",
+    card: "بطاقة",
+    instapay: "إنستاباي",
+    bank_transfer: "تحويل بنكي",
+    other: "أخرى",
+  };
+
+  return labels[value ?? "other"] ?? "أخرى";
 }
 
 function Page() {
@@ -93,6 +106,7 @@ function Expenses({
   });
 
   const [branchChoice, setBranchChoice] = useState("");
+
   const branchId =
     assignedBranch ||
     branchChoice ||
@@ -149,6 +163,7 @@ function Expenses({
       const { data, error } = await request;
 
       if (error) throw error;
+
       return data ?? [];
     },
   });
@@ -212,7 +227,6 @@ function Expenses({
 
   return (
     <div dir="rtl" className="space-y-6">
-
       <div>
         <h2 className="text-xl font-bold">إدارة المصروفات</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -260,6 +274,7 @@ function Expenses({
               <label className="mb-2 block text-sm font-medium">
                 اختيار الفرع
               </label>
+
               <select
                 value={branchId}
                 onChange={(event) => setBranchChoice(event.target.value)}
@@ -284,6 +299,7 @@ function Expenses({
                 <label className="mb-2 block text-sm font-medium">
                   تصنيف المصروف
                 </label>
+
                 <select
                   value={category}
                   onChange={(event) => setCategory(event.target.value)}
@@ -302,6 +318,7 @@ function Expenses({
                 <label className="mb-2 block text-sm font-medium">
                   المبلغ بالجنيه
                 </label>
+
                 <input
                   type="number"
                   min="0"
@@ -317,6 +334,7 @@ function Expenses({
                 <label className="mb-2 block text-sm font-medium">
                   طريقة الدفع
                 </label>
+
                 <select
                   value={paymentMethod}
                   onChange={(event) => setPaymentMethod(event.target.value)}
@@ -334,6 +352,7 @@ function Expenses({
                 <label className="mb-2 block text-sm font-medium">
                   تاريخ المصروف
                 </label>
+
                 <input
                   type="date"
                   value={spentAt}
@@ -346,6 +365,7 @@ function Expenses({
                 <label className="mb-2 block text-sm font-medium">
                   تفاصيل المصروف
                 </label>
+
                 <input
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
@@ -385,6 +405,7 @@ function Expenses({
                 <label className="mb-2 block text-sm">
                   من تاريخ
                 </label>
+
                 <input
                   type="date"
                   value={fromDate}
@@ -397,6 +418,7 @@ function Expenses({
                 <label className="mb-2 block text-sm">
                   إلى تاريخ
                 </label>
+
                 <input
                   type="date"
                   value={toDate}
@@ -409,6 +431,7 @@ function Expenses({
                 <label className="mb-2 block text-sm">
                   التصنيف
                 </label>
+
                 <select
                   value={filterCategory}
                   onChange={(event) => setFilterCategory(event.target.value)}
@@ -463,25 +486,24 @@ function Expenses({
                       <th className="p-3">المبلغ</th>
                     </tr>
                   </thead>
+
                   <tbody>
                     {expenses.map((item) => (
                       <tr key={item.id} className="border-t">
                         <td className="p-3">{item.spent_at}</td>
+
                         <td className="p-3 font-medium">
                           {item.category}
                         </td>
+
                         <td className="p-3">
                           {item.description || "—"}
                         </td>
+
                         <td className="p-3">
-                          {{
-                            cash: "نقدي",
-                            card: "بطاقة",
-                            instapay: "إنستاباي",
-                            bank_transfer: "تحويل بنكي",
-                            other: "أخرى",
-                          }[item.payment_method ?? "other"] ?? "أخرى"}
+                          {paymentMethodLabel(item.payment_method)}
                         </td>
+
                         <td className="p-3 font-semibold text-red-600">
                           {money(Number(item.amount))}
                         </td>
