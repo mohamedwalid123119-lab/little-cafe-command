@@ -48,7 +48,10 @@ function Page() {
 
   return (
     <ModulePage module="pos" wide>
-      <Cashier tenantId={membership.tenant_id} preferredBranch={membership.branch_id} />
+      <Cashier
+        tenantId={membership.tenant_id}
+        preferredBranch={membership.branch_id}
+      />
     </ModulePage>
   );
 }
@@ -66,13 +69,17 @@ function Cashier({
   const { data: catalog } = useSuspenseQuery(q.posCatalog(tenantId));
 
   const [branchId, setBranchId] = useState(
-    preferredBranch ?? branches.find((b) => b.is_main)?.id ?? branches[0]?.id ?? "",
+    preferredBranch ??
+      branches.find((b) => b.is_main)?.id ??
+      branches[0]?.id ??
+      "",
   );
   const [categoryId, setCategoryId] = useState("all");
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [discount, setDiscount] = useState("0");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [paymentMethod, setPaymentMethod] =
+    useState<PaymentMethod>("cash");
   const [orderType, setOrderType] = useState<OrderType>("dine_in");
   const [received, setReceived] = useState("");
   const [notes, setNotes] = useState("");
@@ -103,7 +110,10 @@ function Cashier({
     const term = search.trim().toLowerCase();
 
     return catalog.products.flatMap((product) => {
-      if (categoryId !== "all" && product.category_id !== categoryId) {
+      if (
+        categoryId !== "all" &&
+        product.category_id !== categoryId
+      ) {
         return [];
       }
 
@@ -113,7 +123,8 @@ function Cashier({
 
       return variants
         .filter((variant) => {
-          const label = `${product.name} ${variant.name ?? ""}`.toLowerCase();
+          const label =
+            `${product.name} ${variant.name ?? ""}`.toLowerCase();
           return !term || label.includes(term);
         })
         .map((variant) => ({
@@ -154,14 +165,26 @@ function Cashier({
       setNotes("");
 
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["pos-session-orders"] }),
-        queryClient.invalidateQueries({ queryKey: ["dashboard-overview"] }),
-        queryClient.invalidateQueries({ queryKey: ["ingredients"] }),
-        queryClient.invalidateQueries({ queryKey: ["pos-catalog"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["pos-session-orders"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["dashboard-overview"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["ingredients"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["pos-catalog"],
+        }),
       ]);
     },
     onError: (error) => {
-      setMessage(error instanceof Error ? error.message : "تعذر تسجيل البيع.");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "تعذر تسجيل البيع.",
+      );
     },
   });
 
@@ -169,18 +192,38 @@ function Cashier({
     setMessage("");
   }, [branchId]);
 
-  function addProduct(product: { id: string; name: string; price: number }) {
+  function changeBranch(nextBranchId: string) {
+    if (nextBranchId === branchId) return;
+
+    setBranchId(nextBranchId);
+    setCart([]);
+    setDiscount("0");
+    setReceived("");
+    setNotes("");
+    setMessage("تم تغيير الفرع وتفريغ السلة.");
+  }
+
+  function addProduct(product: {
+    id: string;
+    name: string;
+    price: number;
+  }) {
     setCart((current) =>
-      addToCart(
-        current,
-        {
-          variantId: product.id,
-          name: product.name,
-          unitPrice: product.price,
-        },
-      ),
+      addToCart(current, {
+        variantId: product.id,
+        name: product.name,
+        unitPrice: product.price,
+      }),
     );
     setMessage("");
+  }
+
+  function clearCart() {
+    setCart([]);
+    setDiscount("0");
+    setReceived("");
+    setNotes("");
+    setMessage("تم تفريغ السلة.");
   }
 
   const cashChange =
@@ -206,7 +249,7 @@ function Cashier({
 
         <select
           value={branchId}
-          onChange={(e) => setBranchId(e.target.value)}
+          onChange={(e) => changeBranch(e.target.value)}
           className="h-10 rounded-lg border bg-background px-3"
           aria-label="الفرع"
         >
@@ -227,8 +270,15 @@ function Cashier({
         </div>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <section className="min-w-0 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-bold">المنتجات</h2>
+            <span className="text-sm text-muted-foreground">
+              {products.length} منتج متاح
+            </span>
+          </div>
+
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -272,7 +322,8 @@ function Cashier({
               >
                 <span className="font-semibold">{product.name}</span>
                 <span className="mt-3 text-lg font-bold text-primary">
-                  {product.price.toLocaleString("ar-EG")} {tenant.currency}
+                  {product.price.toLocaleString("ar-EG")}{" "}
+                  {tenant.currency}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   اضغط للإضافة +
@@ -289,11 +340,22 @@ function Cashier({
         </section>
 
         <aside className="space-y-4 rounded-2xl border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold">سلة المشتريات</h2>
-            <span className="rounded-full bg-muted px-3 py-1 text-sm">
-              {itemCount(cart)} صنف
-            </span>
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-bold">سلة المشتريات</h2>
+              <span className="text-sm text-muted-foreground">
+                {itemCount(cart)} قطعة
+              </span>
+            </div>
+
+            {cart.length > 0 && (
+              <button
+                onClick={clearCart}
+                className="rounded-lg border border-destructive px-3 py-2 text-sm text-destructive"
+              >
+                إفراغ السلة
+              </button>
+            )}
           </div>
 
           {cart.length === 0 ? (
@@ -301,7 +363,7 @@ function Cashier({
               السلة فارغة. اختر منتجاً للبدء.
             </p>
           ) : (
-            <div className="max-h-72 space-y-3 overflow-y-auto">
+            <div className="max-h-80 space-y-3 overflow-y-auto">
               {cart.map((line) => (
                 <div
                   key={line.variantId}
@@ -321,8 +383,13 @@ function Cashier({
                     </button>
                   </div>
 
-                  <div className="mt-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    سعر الوحدة: {line.unitPrice.toLocaleString("ar-EG")}{" "}
+                    {tenant.currency}
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() =>
                           setCart((current) =>
@@ -333,11 +400,35 @@ function Cashier({
                             ),
                           )
                         }
-                        className="h-8 w-8 rounded-md border"
+                        className="h-9 w-9 rounded-md border"
+                        aria-label="تقليل الكمية"
                       >
                         −
                       </button>
-                      <b>{line.quantity}</b>
+
+                      <input
+                        type="number"
+                        min="1"
+                        max="1000"
+                        step="1"
+                        value={line.quantity}
+                        onChange={(e) => {
+                          const value = Number(e.target.value);
+                          if (e.target.value === "") return;
+                          if (Number.isFinite(value) && value >= 1) {
+                            setCart((current) =>
+                              setQuantity(
+                                current,
+                                line.variantId,
+                                value,
+                              ),
+                            );
+                          }
+                        }}
+                        className="h-9 w-16 rounded-md border bg-background text-center"
+                        aria-label={`كمية ${line.name}`}
+                      />
+
                       <button
                         onClick={() =>
                           setCart((current) =>
@@ -348,13 +439,18 @@ function Cashier({
                             ),
                           )
                         }
-                        className="h-8 w-8 rounded-md border"
+                        className="h-9 w-9 rounded-md border"
+                        aria-label="زيادة الكمية"
                       >
                         +
                       </button>
                     </div>
-                    <b>
-                      {(line.quantity * line.unitPrice).toLocaleString("ar-EG")}
+
+                    <b className="text-primary">
+                      {(line.quantity * line.unitPrice).toLocaleString(
+                        "ar-EG",
+                      )}{" "}
+                      {tenant.currency}
                     </b>
                   </div>
                 </div>
@@ -367,7 +463,9 @@ function Cashier({
               نوع الطلب
               <select
                 value={orderType}
-                onChange={(e) => setOrderType(e.target.value as OrderType)}
+                onChange={(e) =>
+                  setOrderType(e.target.value as OrderType)
+                }
                 className="mt-1 h-10 w-full rounded-lg border bg-background px-3"
               >
                 <option value="dine_in">داخل الكافيه</option>
@@ -433,18 +531,22 @@ function Cashier({
               <span>الإجمالي قبل الخصم</span>
               <b>{totals.subtotal.toLocaleString("ar-EG")}</b>
             </div>
+
             <div className="flex justify-between">
               <span>الخصم</span>
               <b>{totals.discount.toLocaleString("ar-EG")}</b>
             </div>
+
             <div className="flex justify-between">
               <span>الضريبة</span>
               <b>{totals.tax.toLocaleString("ar-EG")}</b>
             </div>
+
             <div className="flex justify-between text-xl font-bold">
               <span>الإجمالي</span>
               <span className="text-primary">
-                {totals.total.toLocaleString("ar-EG")} {tenant.currency}
+                {totals.total.toLocaleString("ar-EG")}{" "}
+                {tenant.currency}
               </span>
             </div>
 
@@ -468,11 +570,16 @@ function Cashier({
             }}
             className="h-12 w-full rounded-xl bg-primary font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {saleMutation.isPending ? "جاري تسجيل البيع..." : "تأكيد البيع"}
+            {saleMutation.isPending
+              ? "جاري تسجيل البيع..."
+              : "تأكيد البيع"}
           </button>
 
           {message && (
-            <p role="status" className="break-words text-sm text-muted-foreground">
+            <p
+              role="status"
+              className="break-words text-sm text-muted-foreground"
+            >
               {message}
             </p>
           )}
@@ -481,6 +588,7 @@ function Cashier({
 
       <section className="rounded-xl border bg-card p-4">
         <h2 className="mb-3 font-bold">آخر عمليات الوردية</h2>
+
         {!recentOrders?.length ? (
           <p className="text-sm text-muted-foreground">
             لا توجد عمليات مسجلة في هذه الوردية.
@@ -493,9 +601,13 @@ function Cashier({
                 className="flex flex-wrap justify-between gap-2 border-b py-2 text-sm last:border-0"
               >
                 <span>طلب #{order.order_number}</span>
-                <span>{order.total.toLocaleString("ar-EG")} {tenant.currency}</span>
+                <span>
+                  {order.total.toLocaleString("ar-EG")} {tenant.currency}
+                </span>
                 <span className="text-muted-foreground">
-                  {order.status === "completed" ? "مكتمل" : order.status}
+                  {order.status === "completed"
+                    ? "مكتمل"
+                    : order.status}
                 </span>
               </div>
             ))}
