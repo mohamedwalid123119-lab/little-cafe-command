@@ -72,6 +72,13 @@
       "when": 1795360003000,
       "tag": "0009_purchase_item_total_trigger_safety",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795360004000,
+      "tag": "0010_purchase_item_guard_hardening",
+      "breakpoints": true
     }
   ]
 }
