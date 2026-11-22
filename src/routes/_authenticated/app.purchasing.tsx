@@ -117,6 +117,7 @@ function Page() {
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!branchId) throw new Error("اختار الفرع أولاً");
+
       const { data, error } = await supabase
         .from("purchases")
         .insert({
@@ -129,6 +130,7 @@ function Page() {
         })
         .select("id")
         .single();
+
       if (error) throw error;
       return data.id;
     },
@@ -146,6 +148,7 @@ function Page() {
     mutationFn: async () => {
       if (!selectedPurchase || selectedPurchase.status !== "draft")
         throw new Error("اختار فاتورة مسودة أولاً");
+
       if (!selectedIngredient) throw new Error("اختار الخامة");
 
       const amount = Number(quantity);
@@ -153,6 +156,7 @@ function Page() {
 
       if (!Number.isFinite(amount) || amount <= 0)
         throw new Error("اكتب كمية صحيحة أكبر من صفر");
+
       if (!Number.isFinite(price) || price < 0)
         throw new Error("اكتب إجمالي سعر صحيح");
 
@@ -202,17 +206,26 @@ function Page() {
     mutationFn: async () => {
       if (!selectedPurchase || selectedPurchase.status !== "draft")
         throw new Error("الفاتورة ليست مسودة");
+
       if (purchaseItems.length === 0)
         throw new Error("أضف خامة واحدة على الأقل قبل الاستلام");
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("purchases")
         .update({ status: "received" })
         .eq("id", selectedPurchase.id)
         .eq("tenant_id", tenantId)
-        .eq("status", "draft");
+        .eq("status", "draft")
+        .select("id")
+        .maybeSingle();
 
       if (error) throw error;
+
+      if (!data) {
+        throw new Error(
+          "لم يتم استلام الفاتورة. تحقق من صلاحياتك أو حدّث الصفحة لأن حالة الفاتورة ربما تغيرت."
+        );
+      }
     },
     onSuccess: async () => {
       setMessage("تم استلام الفاتورة وتسجيل الكميات في المخزون");
@@ -232,10 +245,12 @@ function Page() {
             <p className="text-sm text-muted-foreground">كل الفواتير</p>
             <p className="mt-2 text-2xl font-bold">{purchases.length}</p>
           </div>
+
           <div className="rounded-xl border bg-card p-4">
             <p className="text-sm text-muted-foreground">فواتير مسودة</p>
             <p className="mt-2 text-2xl font-bold">{draftCount}</p>
           </div>
+
           <div className="rounded-xl border bg-card p-4">
             <p className="text-sm text-muted-foreground">فواتير مستلمة</p>
             <p className="mt-2 text-2xl font-bold">{receivedCount}</p>
@@ -274,6 +289,7 @@ function Page() {
                 ))}
               </select>
             </div>
+
             <div>
               <label className="mb-2 block text-sm font-medium">رقم الفاتورة</label>
               <input
@@ -283,6 +299,7 @@ function Page() {
                 className="w-full rounded-lg border bg-background p-3"
               />
             </div>
+
             <div className="sm:col-span-2">
               <label className="mb-2 block text-sm font-medium">ملاحظات</label>
               <input
@@ -310,10 +327,13 @@ function Page() {
         <div className="grid items-start gap-5 lg:grid-cols-[0.85fr_1.5fr]">
           <section className="rounded-xl border bg-card p-4">
             <h2 className="mb-3 text-lg font-bold">سجل الفواتير</h2>
+
             {isLoading ? (
               <p className="p-4 text-center text-muted-foreground">جارٍ التحميل...</p>
             ) : purchases.length === 0 ? (
-              <p className="p-4 text-center text-muted-foreground">لا توجد فواتير حتى الآن.</p>
+              <p className="p-4 text-center text-muted-foreground">
+                لا توجد فواتير حتى الآن.
+              </p>
             ) : (
               <div className="space-y-2">
                 {purchases.map((purchase) => (
@@ -332,14 +352,17 @@ function Page() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <strong>{purchase.reference_number || "فاتورة بدون رقم"}</strong>
+
                       <span className="text-xs text-muted-foreground">
                         {purchase.status === "draft" ? "مسودة" :
                           purchase.status === "received" ? "مستلمة" : "ملغاة"}
                       </span>
                     </div>
+
                     <p className="mt-1 text-sm text-muted-foreground">
                       {purchase.supplier?.name || "بدون مورد"} · {purchase.branch?.name || ""}
                     </p>
+
                     <p className="mt-1 font-semibold">
                       {Number(purchase.total_amount).toLocaleString("ar-EG")} ج.م
                     </p>
@@ -361,10 +384,12 @@ function Page() {
                     <h2 className="text-xl font-bold">
                       {selectedPurchase.reference_number || "فاتورة شراء"}
                     </h2>
+
                     <p className="mt-1 text-sm text-muted-foreground">
                       {selectedPurchase.supplier?.name || "بدون مورد"}
                     </p>
                   </div>
+
                   <span className="rounded-full bg-muted px-3 py-1 text-sm">
                     {selectedPurchase.status === "draft" ? "مسودة" :
                       selectedPurchase.status === "received" ? "مستلمة" : "ملغاة"}
@@ -374,9 +399,11 @@ function Page() {
                 {selectedPurchase.status === "draft" && (
                   <div className="my-5 rounded-lg border p-3">
                     <h3 className="mb-3 font-semibold">إضافة خامة للفاتورة</h3>
+
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="sm:col-span-2">
                         <label className="mb-2 block text-sm font-medium">الخامة</label>
+
                         <select
                           value={ingredientId}
                           onChange={(e) => {
@@ -406,6 +433,7 @@ function Page() {
                           className="w-full rounded-lg border bg-background p-3"
                         />
                       </div>
+
                       <div>
                         <label className="mb-2 block text-sm font-medium">وحدة الشراء</label>
                         <select
@@ -418,6 +446,7 @@ function Page() {
                           ))}
                         </select>
                       </div>
+
                       <div className="sm:col-span-2">
                         <label className="mb-2 block text-sm font-medium">
                           إجمالي سعر الكمية بالجنيه
@@ -455,8 +484,11 @@ function Page() {
                 )}
 
                 <h3 className="mb-3 font-semibold">أصناف الفاتورة</h3>
+
                 {itemsLoading ? (
-                  <p className="p-4 text-center text-muted-foreground">جارٍ تحميل الأصناف...</p>
+                  <p className="p-4 text-center text-muted-foreground">
+                    جارٍ تحميل الأصناف...
+                  </p>
                 ) : purchaseItems.length === 0 ? (
                   <p className="rounded-lg bg-muted p-4 text-center text-muted-foreground">
                     لم تتم إضافة خامات لهذه الفاتورة.
@@ -464,7 +496,10 @@ function Page() {
                 ) : (
                   <div className="space-y-2">
                     {purchaseItems.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                      >
                         <div>
                           <strong>{item.ingredient?.name || "خامة"}</strong>
                           <p className="mt-1 text-sm text-muted-foreground">
@@ -472,6 +507,7 @@ function Page() {
                             {unitName(item.ingredient?.base_unit || "")}
                           </p>
                         </div>
+
                         <strong>
                           {Number(
                             (item as typeof item & { purchase_total?: number | null }).purchase_total
@@ -496,7 +532,11 @@ function Page() {
                     type="button"
                     disabled={purchaseItems.length === 0 || receiveMutation.isPending}
                     onClick={() => {
-                      if (window.confirm("تأكيد استلام الفاتورة؟ سيتم إضافة الكميات للمخزون ولا يمكن تعديل الفاتورة بعدها.")) {
+                      if (
+                        window.confirm(
+                          "تأكيد استلام الفاتورة؟ سيتم إضافة الكميات للمخزون ولا يمكن تعديل الفاتورة بعدها."
+                        )
+                      ) {
                         setMessage("");
                         receiveMutation.mutate();
                       }
@@ -512,7 +552,9 @@ function Page() {
         </div>
 
         {message && (
-          <p role="status" className="rounded-lg bg-muted p-3 text-sm">{message}</p>
+          <p role="status" className="rounded-lg bg-muted p-3 text-sm">
+            {message}
+          </p>
         )}
       </div>
     </ModulePage>
