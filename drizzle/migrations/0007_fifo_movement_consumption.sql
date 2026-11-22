@@ -116,7 +116,7 @@ create or replace function public.void_order(
 returns void
 language plpgsql
 security definer
-set search_path to 'public'
+set search_path = ''
 as $function$
 declare
   v_uid uuid := auth.uid();
