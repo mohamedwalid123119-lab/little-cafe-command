@@ -98,6 +98,22 @@ begin
     where oi.unit_cost is null
   ),
 
+  uncovered_orders as (
+    select count(distinct o.id) as order_count
+    from completed_orders o
+    join public.order_items oi on oi.order_id = o.id
+    join public.product_variants v on v.id = oi.variant_id
+    where v.recipe_id is not null
+      and not exists (
+        select 1
+        from public.inventory_movements m
+        where m.reference_id = o.id
+          and m.tenant_id = _tenant
+          and m.movement_type = 'sale'
+          and (_branch is null or m.branch_id = _branch)
+      )
+  ),
+
   sales_summary as (
     select
       count(*) as orders_count,
@@ -241,8 +257,13 @@ begin
       'incomplete_fifo_movements', f.incomplete_movements,
       'fifo_complete', f.incomplete_movements = 0,
       'uncosted_items', u.item_count,
+      'uncovered_orders', x.order_count,
       'cost_complete',
-        (f.incomplete_movements = 0 and u.item_count = 0),
+        (
+          f.incomplete_movements = 0
+          and u.item_count = 0
+          and x.order_count = 0
+        ),
       'waste_cost_estimate', round(w.estimated_waste_cost, 2),
       'waste_movements', w.waste_movements
     ),
@@ -250,19 +271,25 @@ begin
     'profit', jsonb_build_object(
       'gross_profit',
         case
-          when f.incomplete_movements = 0 and u.item_count = 0
+          when f.incomplete_movements = 0
+            and u.item_count = 0
+            and x.order_count = 0
           then round(s.net_sales - f.fifo_cogs, 2)
           else null
         end,
       'net_profit',
         case
-          when f.incomplete_movements = 0 and u.item_count = 0
+          when f.incomplete_movements = 0
+            and u.item_count = 0
+            and x.order_count = 0
           then round(s.net_sales - f.fifo_cogs - e.total_expenses, 2)
           else null
         end,
       'profit_status',
         case
-          when f.incomplete_movements = 0 and u.item_count = 0
+          when f.incomplete_movements = 0
+            and u.item_count = 0
+            and x.order_count = 0
           then 'complete'
           else 'incomplete_costing'
         end
@@ -307,6 +334,7 @@ begin
   from sales_summary s
   cross join fifo_summary f
   cross join uncosted_items u
+  cross join uncovered_orders x
   cross join waste_summary w
   cross join expense_summary e
   cross join shift_details sd;
