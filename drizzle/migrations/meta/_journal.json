@@ -36,6 +36,13 @@
       "when": 1794707772172,
       "tag": "0004_create_cafe_onboarding",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795305600000,
+      "tag": "0005_prevent_negative_stock",
+      "breakpoints": true
     }
   ]
 }
