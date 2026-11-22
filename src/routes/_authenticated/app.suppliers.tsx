@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/app/suppliers")({
   head: () => ({
-    meta: [{ title: "الموردون — CAFE OS" }],
+    meta: [{ title: "دليل الموردين — CAFE OS" }],
   }),
   component: Page,
 });
@@ -28,10 +28,7 @@ function Page() {
 
   const queryClient = useQueryClient();
 
-  const {
-    data: suppliers = [],
-    isLoading,
-  } = useQuery({
+  const { data: suppliers = [], isLoading } = useQuery({
     queryKey: ["suppliers", tenantId],
     enabled: Boolean(tenantId),
     queryFn: async () => {
@@ -68,7 +65,6 @@ function Page() {
     await queryClient.invalidateQueries({
       queryKey: ["suppliers", tenantId],
     });
-
     await queryClient.invalidateQueries({
       queryKey: ["purchasing-suppliers", tenantId],
     });
@@ -76,18 +72,14 @@ function Page() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!tenantId) {
-        throw new Error("لا يوجد كافيه مرتبط بالحساب");
-      }
+      if (!tenantId) throw new Error("لا يوجد كافيه مرتبط بالحساب");
 
-      const cleanName = name.trim();
-
-      if (cleanName.length < 2) {
+      if (name.trim().length < 2) {
         throw new Error("اكتب اسم المورد بشكل صحيح");
       }
 
       const payload = {
-        name: cleanName,
+        name: name.trim(),
         phone: phone.trim() || null,
         address: address.trim() || null,
         notes: notes.trim() || null,
@@ -112,49 +104,37 @@ function Page() {
         if (error) throw error;
       }
     },
-
     onSuccess: async () => {
-      setMessage(
-        editingId
-          ? "تم تحديث بيانات المورد"
-          : "تمت إضافة المورد",
-      );
-
+      setMessage(editingId ? "تم تعديل بيانات المورد" : "تمت إضافة المورد");
       resetForm();
       await refresh();
     },
-
-    onError: (error: Error) => {
-      setMessage(error.message);
-    },
+    onError: (error: Error) => setMessage(error.message),
   });
 
-  const toggleMutation = useMutation({
-    mutationFn: async (
-      supplier: (typeof suppliers)[number],
-    ) => {
-      if (!tenantId) {
-        throw new Error("لا يوجد كافيه مرتبط بالحساب");
-      }
+  const deleteMutation = useMutation({
+    mutationFn: async (supplierId: string) => {
+      if (!tenantId) throw new Error("لا يوجد كافيه مرتبط بالحساب");
 
       const { error } = await supabase
         .from("suppliers")
-        .update({
-          is_active: !supplier.is_active,
-        })
-        .eq("id", supplier.id)
+        .delete()
+        .eq("id", supplierId)
         .eq("tenant_id", tenantId);
 
       if (error) throw error;
     },
-
     onSuccess: async () => {
-      setMessage("تم تحديث حالة المورد");
+      setMessage("تم حذف المورد");
+      if (editingId) resetForm();
       await refresh();
     },
-
     onError: (error: Error) => {
-      setMessage(error.message);
+      setMessage(
+        error.message.includes("foreign key")
+          ? "لا يمكن حذف المورد لأنه مرتبط بفاتورة شراء. يمكنك تعديل بياناته بدلًا من حذفه."
+          : error.message,
+      );
     },
   });
 
@@ -162,7 +142,6 @@ function Page() {
     return (
       <ModulePage module="suppliers">
         لا يوجد كافيه مرتبط بحسابك حتى الآن.
-        لا يمكن إضافة أو إدارة الموردين قبل ربط الحساب بكافيه.
       </ModulePage>
     );
   }
@@ -173,13 +152,7 @@ function Page() {
       .includes(search.trim().toLowerCase()),
   );
 
-  const activeCount = suppliers.filter(
-    (supplier) => supplier.is_active,
-  ).length;
-
-  const startEdit = (
-    supplier: (typeof suppliers)[number],
-  ) => {
+  const startEdit = (supplier: (typeof suppliers)[number]) => {
     setEditingId(supplier.id);
     setName(supplier.name);
     setPhone(supplier.phone ?? "");
@@ -191,73 +164,35 @@ function Page() {
   return (
     <ModulePage module="suppliers" wide>
       <div dir="rtl" className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold">
-            إدارة الموردين
-          </h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-bold">دليل الموردين</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              احفظ بيانات الموردين وأرقام التواصل والعناوين في مكان واحد.
+            </p>
+          </div>
 
-          <p className="mt-1 text-sm text-muted-foreground">
-            إدارة بيانات الموردين ومتابعة حالة كل مورد.
-          </p>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-sm text-muted-foreground">
+          <div className="rounded-xl border bg-card px-4 py-3">
+            <span className="text-sm text-muted-foreground">
               إجمالي الموردين
-            </p>
-            <p className="mt-2 text-2xl font-bold">
-              {suppliers.length}
-            </p>
-          </div>
-
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-sm text-muted-foreground">
-              موردون نشطون
-            </p>
-            <p className="mt-2 text-2xl font-bold text-green-600">
-              {activeCount}
-            </p>
-          </div>
-
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-sm text-muted-foreground">
-              موردون متوقفون
-            </p>
-            <p className="mt-2 text-2xl font-bold">
-              {suppliers.length - activeCount}
-            </p>
+            </span>
+            <p className="text-2xl font-bold">{suppliers.length}</p>
           </div>
         </div>
 
         <section className="rounded-xl border bg-card p-4">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-lg font-bold">
-              {editingId
-                ? "تعديل بيانات المورد"
-                : "إضافة مورد جديد"}
-            </h3>
-
-            {editingId && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="rounded-lg border px-3 py-2 text-sm"
-              >
-                إلغاء التعديل
-              </button>
-            )}
-          </div>
+          <h3 className="mb-4 text-lg font-bold">
+            {editingId ? "تعديل بيانات المورد" : "إضافة مورد جديد"}
+          </h3>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-2 block text-sm font-medium">
                 اسم المورد *
               </label>
-
               <input
                 value={name}
-                onChange={(event) => setName(event.target.value)}
+                onChange={(e) => setName(e.target.value)}
                 placeholder="اسم المورد أو الشركة"
                 maxLength={120}
                 className="w-full rounded-lg border bg-background p-3"
@@ -268,10 +203,9 @@ function Page() {
               <label className="mb-2 block text-sm font-medium">
                 رقم الهاتف
               </label>
-
               <input
                 value={phone}
-                onChange={(event) => setPhone(event.target.value)}
+                onChange={(e) => setPhone(e.target.value)}
                 placeholder="رقم التواصل"
                 maxLength={30}
                 className="w-full rounded-lg border bg-background p-3"
@@ -282,11 +216,10 @@ function Page() {
               <label className="mb-2 block text-sm font-medium">
                 العنوان
               </label>
-
               <input
                 value={address}
-                onChange={(event) => setAddress(event.target.value)}
-                placeholder="عنوان المورد"
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="عنوان المورد بالتفصيل"
                 maxLength={300}
                 className="w-full rounded-lg border bg-background p-3"
               />
@@ -294,58 +227,66 @@ function Page() {
 
             <div className="sm:col-span-2">
               <label className="mb-2 block text-sm font-medium">
-                ملاحظات
+                ملاحظات إضافية (اختياري)
               </label>
-
               <textarea
                 value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                placeholder="تفاصيل أو ملاحظات عن المورد"
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="أي معلومات إضافية عن المورد"
                 maxLength={500}
-                rows={3}
+                rows={2}
                 className="w-full rounded-lg border bg-background p-3"
               />
             </div>
           </div>
 
-          <button
-            type="button"
-            disabled={!name.trim() || saveMutation.isPending}
-            onClick={() => {
-              setMessage("");
-              saveMutation.mutate();
-            }}
-            className="mt-4 w-full rounded-lg bg-primary p-3 font-semibold text-primary-foreground disabled:opacity-50 sm:w-auto"
-          >
-            {saveMutation.isPending
-              ? "جارٍ الحفظ..."
-              : editingId
-                ? "حفظ التعديلات"
-                : "إضافة المورد"}
-          </button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!name.trim() || saveMutation.isPending}
+              onClick={() => {
+                setMessage("");
+                saveMutation.mutate();
+              }}
+              className="rounded-lg bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-50"
+            >
+              {saveMutation.isPending
+                ? "جارٍ الحفظ..."
+                : editingId
+                  ? "حفظ التعديلات"
+                  : "إضافة المورد"}
+            </button>
+
+            {editingId && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-lg border px-5 py-3"
+              >
+                إلغاء
+              </button>
+            )}
+          </div>
         </section>
 
         <section className="overflow-hidden rounded-xl border bg-card">
           <div className="border-b p-4">
-            <h3 className="font-bold">
-              قائمة الموردين
-            </h3>
-
+            <h3 className="font-bold">قائمة الموردين</h3>
             <input
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="ابحث بالاسم أو الهاتف أو العنوان..."
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="ابحث باسم المورد أو الهاتف أو العنوان..."
               className="mt-3 w-full rounded-lg border bg-background p-3"
             />
           </div>
 
           {isLoading ? (
-            <p className="p-6 text-center text-muted-foreground">
+            <p className="p-8 text-center text-muted-foreground">
               جارٍ تحميل الموردين...
             </p>
           ) : filteredSuppliers.length === 0 ? (
-            <p className="p-6 text-center text-muted-foreground">
-              لا يوجد موردون مطابقون للبحث.
+            <p className="p-8 text-center text-muted-foreground">
+              لا يوجد موردون مسجلون أو لا توجد نتائج مطابقة.
             </p>
           ) : (
             <div className="divide-y">
@@ -354,34 +295,17 @@ function Page() {
                   key={supplier.id}
                   className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <strong>{supplier.name}</strong>
-
-                      <span
-                        className={`rounded-full px-2 py-1 text-xs ${
-                          supplier.is_active
-                            ? "bg-green-100 text-green-800"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {supplier.is_active ? "نشط" : "متوقف"}
-                      </span>
-                    </div>
-
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {supplier.phone || "لا يوجد هاتف"}
+                  <div className="min-w-0 space-y-1">
+                    <h4 className="font-bold">{supplier.name}</h4>
+                    <p className="text-sm text-muted-foreground">
+                      الهاتف: {supplier.phone || "غير مسجل"}
                     </p>
-
-                    {supplier.address && (
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {supplier.address}
-                      </p>
-                    )}
-
+                    <p className="text-sm text-muted-foreground">
+                      العنوان: {supplier.address || "غير مسجل"}
+                    </p>
                     {supplier.notes && (
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {supplier.notes}
+                      <p className="text-sm text-muted-foreground">
+                        ملاحظات: {supplier.notes}
                       </p>
                     )}
                   </div>
@@ -390,18 +314,27 @@ function Page() {
                     <button
                       type="button"
                       onClick={() => startEdit(supplier)}
-                      className="rounded-lg border px-3 py-2 text-sm"
+                      className="rounded-lg border px-4 py-2 text-sm"
                     >
                       تعديل
                     </button>
 
                     <button
                       type="button"
-                      disabled={toggleMutation.isPending}
-                      onClick={() => toggleMutation.mutate(supplier)}
-                      className="rounded-lg border px-3 py-2 text-sm"
+                      disabled={deleteMutation.isPending}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `هل أنت متأكد من حذف المورد ${supplier.name}؟`,
+                          )
+                        ) {
+                          setMessage("");
+                          deleteMutation.mutate(supplier.id);
+                        }
+                      }}
+                      className="rounded-lg border border-destructive px-4 py-2 text-sm text-destructive disabled:opacity-50"
                     >
-                      {supplier.is_active ? "إيقاف" : "تفعيل"}
+                      حذف
                     </button>
                   </div>
                 </div>
@@ -411,10 +344,7 @@ function Page() {
         </section>
 
         {message && (
-          <p
-            role="status"
-            className="rounded-lg bg-muted p-3 text-sm"
-          >
+          <p role="status" className="rounded-lg bg-muted p-3 text-sm">
             {message}
           </p>
         )}
