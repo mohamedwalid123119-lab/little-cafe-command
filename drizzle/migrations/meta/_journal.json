@@ -51,6 +51,13 @@
       "when": 1795360000000,
       "tag": "0006_fifo_inventory_costing",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795360001000,
+      "tag": "0007_fifo_movement_consumption",
+      "breakpoints": true
     }
   ]
 }
