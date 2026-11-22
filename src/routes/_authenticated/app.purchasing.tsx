@@ -2,15 +2,12 @@
 import { createFileRoute, getRouteApi } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-
 import { ModulePage } from "@/components/module-page";
 import { q } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/app/purchasing")({
-  head: () => ({
-    meta: [{ title: "المشتريات — CAFE OS" }],
-  }),
+  head: () => ({ meta: [{ title: "المشتريات — CAFE OS" }] }),
   component: Page,
 });
 
@@ -27,12 +24,10 @@ function Page() {
     ...q.branches(tenantId),
     enabled: Boolean(tenantId),
   });
-
   const { data: ingredients = [] } = useQuery({
     ...q.ingredients(tenantId),
     enabled: Boolean(tenantId),
   });
-
   const { data: units = [] } = useQuery(q.units());
 
   const { data: suppliers = [] } = useQuery({
@@ -45,7 +40,6 @@ function Page() {
         .eq("tenant_id", tenantId)
         .eq("is_active", true)
         .order("name");
-
       if (error) throw error;
       return data ?? [];
     },
@@ -69,7 +63,6 @@ function Page() {
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false })
         .limit(100);
-
       if (error) throw error;
       return data ?? [];
     },
@@ -79,12 +72,10 @@ function Page() {
   const [supplierId, setSupplierId] = useState("");
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
-
   const [ingredientId, setIngredientId] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("kg");
   const [totalPrice, setTotalPrice] = useState("");
-
   const [message, setMessage] = useState("");
 
   const selectedPurchase = purchases.find((p) => p.id === selectedPurchaseId);
@@ -98,7 +89,6 @@ function Page() {
         .select("*, ingredient:ingredients(name, base_unit)")
         .eq("purchase_id", selectedPurchaseId)
         .order("created_at");
-
       if (error) throw error;
       return data ?? [];
     },
@@ -127,7 +117,6 @@ function Page() {
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!branchId) throw new Error("اختار الفرع أولاً");
-
       const { data, error } = await supabase
         .from("purchases")
         .insert({
@@ -140,7 +129,6 @@ function Page() {
         })
         .select("id")
         .single();
-
       if (error) throw error;
       return data.id;
     },
@@ -156,47 +144,48 @@ function Page() {
 
   const addItemMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedPurchase || selectedPurchase.status !== "draft") {
+      if (!selectedPurchase || selectedPurchase.status !== "draft")
         throw new Error("اختار فاتورة مسودة أولاً");
-      }
-
       if (!selectedIngredient) throw new Error("اختار الخامة");
 
       const amount = Number(quantity);
       const price = Number(totalPrice);
 
-      if (!Number.isFinite(amount) || amount <= 0) {
+      if (!Number.isFinite(amount) || amount <= 0)
         throw new Error("اكتب كمية صحيحة أكبر من صفر");
-      }
-
-      if (!Number.isFinite(price) || price < 0) {
+      if (!Number.isFinite(price) || price < 0)
         throw new Error("اكتب إجمالي سعر صحيح");
-      }
 
       const selectedUnit = units.find((u) => u.code === unit);
       const baseUnit = units.find((u) => u.code === selectedIngredient.base_unit);
 
-      if (!selectedUnit || !baseUnit || selectedUnit.dimension !== baseUnit.dimension) {
+      if (!selectedUnit || !baseUnit || selectedUnit.dimension !== baseUnit.dimension)
         throw new Error("وحدة الشراء لا تتوافق مع وحدة الخامة");
-      }
 
-      const baseQuantity =
+      const rawBaseQuantity =
         (amount * Number(selectedUnit.factor_to_base)) /
         Number(baseUnit.factor_to_base);
 
-      if (!Number.isFinite(baseQuantity) || baseQuantity <= 0) {
-        throw new Error("تعذر تحويل الكمية لوحدة المخزون الأساسية");
-      }
+      const baseQuantity = Number(rawBaseQuantity.toFixed(3));
 
+      if (!Number.isFinite(baseQuantity) || baseQuantity <= 0)
+        throw new Error("تعذر تحويل الكمية لوحدة المخزون الأساسية");
+
+      // تكلفة وحدة المخزون لأغراض FIFO، منفصلة عن إجمالي الفاتورة الفعلي.
       const costPerBaseUnit = price / baseQuantity;
 
-      const { error } = await supabase.from("purchase_items").insert({
+      const item = {
         tenant_id: tenantId,
         purchase_id: selectedPurchase.id,
         ingredient_id: selectedIngredient.id,
-        quantity: Number(baseQuantity.toFixed(3)),
+        quantity: baseQuantity,
         unit_cost: Number(costPerBaseUnit.toFixed(4)),
-      });
+        purchase_total: Number(price.toFixed(2)),
+      };
+
+      const { error } = await supabase
+        .from("purchase_items")
+        .insert(item as never);
 
       if (error) throw error;
     },
@@ -211,13 +200,10 @@ function Page() {
 
   const receiveMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedPurchase || selectedPurchase.status !== "draft") {
+      if (!selectedPurchase || selectedPurchase.status !== "draft")
         throw new Error("الفاتورة ليست مسودة");
-      }
-
-      if (purchaseItems.length === 0) {
+      if (purchaseItems.length === 0)
         throw new Error("أضف خامة واحدة على الأقل قبل الاستلام");
-      }
 
       const { error } = await supabase
         .from("purchases")
@@ -288,7 +274,6 @@ function Page() {
                 ))}
               </select>
             </div>
-
             <div>
               <label className="mb-2 block text-sm font-medium">رقم الفاتورة</label>
               <input
@@ -298,7 +283,6 @@ function Page() {
                 className="w-full rounded-lg border bg-background p-3"
               />
             </div>
-
             <div className="sm:col-span-2">
               <label className="mb-2 block text-sm font-medium">ملاحظات</label>
               <input
@@ -326,7 +310,6 @@ function Page() {
         <div className="grid items-start gap-5 lg:grid-cols-[0.85fr_1.5fr]">
           <section className="rounded-xl border bg-card p-4">
             <h2 className="mb-3 text-lg font-bold">سجل الفواتير</h2>
-
             {isLoading ? (
               <p className="p-4 text-center text-muted-foreground">جارٍ التحميل...</p>
             ) : purchases.length === 0 ? (
@@ -348,15 +331,10 @@ function Page() {
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <strong>
-                        {purchase.reference_number || "فاتورة بدون رقم"}
-                      </strong>
+                      <strong>{purchase.reference_number || "فاتورة بدون رقم"}</strong>
                       <span className="text-xs text-muted-foreground">
-                        {purchase.status === "draft"
-                          ? "مسودة"
-                          : purchase.status === "received"
-                            ? "مستلمة"
-                            : "ملغاة"}
+                        {purchase.status === "draft" ? "مسودة" :
+                          purchase.status === "received" ? "مستلمة" : "ملغاة"}
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -388,18 +366,14 @@ function Page() {
                     </p>
                   </div>
                   <span className="rounded-full bg-muted px-3 py-1 text-sm">
-                    {selectedPurchase.status === "draft"
-                      ? "مسودة"
-                      : selectedPurchase.status === "received"
-                        ? "مستلمة"
-                        : "ملغاة"}
+                    {selectedPurchase.status === "draft" ? "مسودة" :
+                      selectedPurchase.status === "received" ? "مستلمة" : "ملغاة"}
                   </span>
                 </div>
 
                 {selectedPurchase.status === "draft" && (
                   <div className="my-5 rounded-lg border p-3">
                     <h3 className="mb-3 font-semibold">إضافة خامة للفاتورة</h3>
-
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="sm:col-span-2">
                         <label className="mb-2 block text-sm font-medium">الخامة</label>
@@ -432,7 +406,6 @@ function Page() {
                           className="w-full rounded-lg border bg-background p-3"
                         />
                       </div>
-
                       <div>
                         <label className="mb-2 block text-sm font-medium">وحدة الشراء</label>
                         <select
@@ -445,7 +418,6 @@ function Page() {
                           ))}
                         </select>
                       </div>
-
                       <div className="sm:col-span-2">
                         <label className="mb-2 block text-sm font-medium">
                           إجمالي سعر الكمية بالجنيه
@@ -470,12 +442,7 @@ function Page() {
 
                     <button
                       type="button"
-                      disabled={
-                        !ingredientId ||
-                        !quantity ||
-                        totalPrice === "" ||
-                        addItemMutation.isPending
-                      }
+                      disabled={!ingredientId || !quantity || totalPrice === "" || addItemMutation.isPending}
                       onClick={() => {
                         setMessage("");
                         addItemMutation.mutate();
@@ -488,7 +455,6 @@ function Page() {
                 )}
 
                 <h3 className="mb-3 font-semibold">أصناف الفاتورة</h3>
-
                 {itemsLoading ? (
                   <p className="p-4 text-center text-muted-foreground">جارٍ تحميل الأصناف...</p>
                 ) : purchaseItems.length === 0 ? (
@@ -507,7 +473,7 @@ function Page() {
                           </p>
                         </div>
                         <strong>
-                          {Number(item.line_total).toLocaleString("ar-EG")} ج.م
+                          {Number(item.purchase_total ?? item.line_total ?? 0).toLocaleString("ar-EG")} ج.م
                         </strong>
                       </div>
                     ))}
@@ -542,9 +508,7 @@ function Page() {
         </div>
 
         {message && (
-          <p role="status" className="rounded-lg bg-muted p-3 text-sm">
-            {message}
-          </p>
+          <p role="status" className="rounded-lg bg-muted p-3 text-sm">{message}</p>
         )}
       </div>
     </ModulePage>
