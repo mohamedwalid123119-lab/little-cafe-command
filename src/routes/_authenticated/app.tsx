@@ -31,10 +31,27 @@ function AppLayout() {
   const isArabic = language === "ar";
 
   const membership = memberships[0];
+
   const items = membership
-    ? NAV_ITEMS.filter((i) => hasModule({ role: membership.role as TenantRole, modules: membership.modules }, i.module))
+    ? NAV_ITEMS.filter((i) =>
+        hasModule(
+          { role: membership.role as TenantRole, modules: membership.modules },
+          i.module
+        )
+      )
     : NAV_ITEMS;
+
+  const localizedItems = items.map((item) => ({
+    ...item,
+    title: isArabic ? item.title : item.titleEn,
+    description: isArabic ? item.description : item.descriptionEn,
+  }));
+
   const current = activeNavItem(pathname);
+  const currentTitle = current
+    ? isArabic ? current.title : current.titleEn
+    : "CAFE OS";
+
   const tenantName = (membership?.tenant as { name?: string } | null)?.name;
 
   async function signOut() {
@@ -46,13 +63,14 @@ function AppLayout() {
 
   return (
     <SidebarProvider>
-      <AppSidebar items={items} onSignOut={signOut} />
+      <AppSidebar items={localizedItems} onSignOut={signOut} />
+
       <SidebarInset>
         <header className="sticky top-0 z-10 flex h-12 items-center gap-2 border-b bg-background px-3">
           <SidebarTrigger />
 
           <span className="truncate font-semibold">
-            {current?.title ?? "CAFE OS"}
+            {currentTitle}
           </span>
 
           {tenantName && (
