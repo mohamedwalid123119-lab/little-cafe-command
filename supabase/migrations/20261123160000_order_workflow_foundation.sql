@@ -1,7 +1,6 @@
-
 -- Little Cafe Command
 -- Order Workflow Foundation
--- Corrected and security-reviewed candidate.
+-- Corrected security-reviewed candidate.
 -- Does not apply itself to the database.
 
 begin;
@@ -30,8 +29,6 @@ where status = 'completed'
   and payment_method is not null
   and payment_status is null;
 
--- New orders are unpaid unless a trusted payment operation
--- explicitly marks them as paid.
 alter table public.orders
   alter column payment_status set default 'unpaid';
 
@@ -93,8 +90,6 @@ $$;
 
 -- =====================================================
 -- 3. ORDER ACTIVITY HISTORY
--- order_id becomes NULL after permanent order deletion.
--- The event and its details remain available.
 -- =====================================================
 
 create table if not exists public.order_events (
@@ -140,8 +135,6 @@ create index if not exists idx_orders_open_branch
 
 -- =====================================================
 -- 5. AUTOMATIC EVENT CAPTURE
--- Handles order INSERT, UPDATE and DELETE.
--- Handles order item INSERT, UPDATE and DELETE.
 -- =====================================================
 
 create or replace function public.capture_order_event()
@@ -157,10 +150,6 @@ declare
   v_event_type text;
   v_details jsonb := '{}'::jsonb;
 begin
-
-  -- -------------------------------------------------
-  -- Orders
-  -- -------------------------------------------------
 
   if tg_table_name = 'orders' then
 
@@ -219,10 +208,6 @@ begin
       );
     end if;
 
-  -- -------------------------------------------------
-  -- Order items
-  -- -------------------------------------------------
-
   elsif tg_table_name = 'order_items' then
 
     if tg_op = 'DELETE' then
@@ -236,8 +221,6 @@ begin
     from public.orders o
     where o.id = v_order_id;
 
-    -- During cascading deletion the parent may no longer
-    -- be available. The order_deleted event keeps its snapshot.
     if v_tenant_id is null or v_branch_id is null then
       return null;
     end if;
@@ -280,10 +263,6 @@ begin
   else
     return null;
   end if;
-
-  -- -------------------------------------------------
-  -- Save event
-  -- -------------------------------------------------
 
   if v_order_id is not null
      and v_tenant_id is not null
@@ -391,14 +370,13 @@ using (
   )
 );
 
--- Trigger function is not an exposed RPC.
+-- Trigger function is internal only.
 revoke all on function public.capture_order_event()
-  from public, anon, authenticated;
+  from public, anon, authenticated, service_role;
 
 -- =====================================================
 -- 8. SECURE EXISTING SALE FUNCTION
--- Preserves the original VAT, item and inventory logic.
--- Only adds role restriction and payment tracking.
+-- Preserves original VAT and inventory logic.
 -- =====================================================
 
 create or replace function public.create_sale(
@@ -427,6 +405,7 @@ declare
   v_total numeric;
   it record;
 begin
+
   if v_uid is null then
     raise exception 'يجب تسجيل الدخول أولاً';
   end if;
@@ -445,8 +424,8 @@ begin
     raise exception 'الفرع غير موجود';
   end if;
 
-  -- Only owner, manager and cashier can register sales.
-  -- Barista is explicitly excluded.
+  -- Owner, manager and cashier only.
+  -- Barista is excluded.
   if not exists (
     select 1
     from public.memberships m
@@ -512,6 +491,7 @@ begin
       on p.id = v.product_id
       and p.is_active
   loop
+
     if it.pname is null then
       raise exception 'منتج غير متاح للبيع';
     end if;
@@ -594,7 +574,7 @@ begin
     left(
       p.name ||
       case
-        when count(*) over (partition by p.id) > 0
+        when v.name is not null
           and v.name <> ''
           and v.name <> p.name
         then ' - ' || v.name
@@ -615,7 +595,7 @@ begin
   left join public.recipes r
     on r.id = v.recipe_id;
 
-  -- Original inventory consumption logic is preserved.
+  -- Original inventory consumption logic.
   insert into public.inventory_movements (
     tenant_id,
     branch_id,
@@ -655,7 +635,7 @@ begin
 end;
 $function$;
 
--- Keep create_sale callable only by authenticated users.
+-- Only authenticated users can call create_sale.
 revoke execute on function public.create_sale(
   uuid, uuid, jsonb, text, text, numeric, text
 ) from public, anon;
