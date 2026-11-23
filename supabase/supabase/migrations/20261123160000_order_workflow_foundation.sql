@@ -1,7 +1,7 @@
 
 -- Little Cafe Command
--- Order workflow foundation
--- This migration is intentionally additive and does not execute sales.
+-- Order Workflow Foundation
+-- Safe additive migration
 
 begin;
 
@@ -14,11 +14,11 @@ alter table public.orders
   add column if not exists deleted_at timestamptz,
   add column if not exists deleted_by uuid references auth.users(id);
 
--- New orders should start as drafts, not completed sales.
+-- New orders start as drafts
 alter table public.orders
   alter column status set default 'draft';
 
--- 2. Payment status validation
+-- 2. Payment status constraint
 do $$
 begin
   if not exists (
@@ -29,17 +29,21 @@ begin
   ) then
     alter table public.orders
       add constraint orders_payment_status_check
-      check (payment_status in ('unpaid', 'paid', 'refunded'));
+      check (
+        payment_status in ('unpaid', 'paid', 'refunded')
+      );
   end if;
 end
 $$;
 
--- 3. Order event history
+-- 3. Order events history
 create table if not exists public.order_events (
   id uuid primary key default gen_random_uuid(),
-  tenant_id uuid not null references public.tenants(id) on delete cascade,
+  tenant_id uuid not null
+    references public.tenants(id) on delete cascade,
   order_id uuid not null,
-  actor_id uuid references auth.users(id) on delete set null,
+  actor_id uuid
+    references auth.users(id) on delete set null,
   event_type text not null,
   details jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
@@ -53,21 +57,23 @@ create table if not exists public.order_events (
     check (length(trim(event_type)) between 1 and 80)
 );
 
+-- 4. Indexes
 create index if not exists idx_order_events_order_created
   on public.order_events (order_id, created_at desc);
 
 create index if not exists idx_order_events_tenant_created
   on public.order_events (tenant_id, created_at desc);
 
--- 4. Active order lookup
 create index if not exists idx_orders_open_branch
   on public.orders (tenant_id, branch_id, created_at desc)
   where status in ('draft', 'pending');
 
--- 5. Protect event history
-alter table public.order_events enable row level security;
+-- 5. Event history security
+alter table public.order_events
+  enable row level security;
 
-drop policy if exists "order events read" on public.order_events;
+drop policy if exists "order events read"
+  on public.order_events;
 
 create policy "order events read"
   on public.order_events
@@ -78,7 +84,7 @@ create policy "order events read"
     or public.has_module(tenant_id, 'reports')
   );
 
--- No direct INSERT, UPDATE, or DELETE policy is created.
--- Event creation will be restricted to trusted database functions.
+-- No direct event insert/update/delete permissions.
+-- These operations will be handled by secured database functions.
 
 commit;
