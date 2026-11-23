@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 
-const OWNER_EMAIL = "Mohamedwalid123119@gmail.com";
+const OWNER_EMAIL = "mohamedwalid123119@gmail.com";
 
 export const Route = createFileRoute("/owner")({
   head: () => ({
