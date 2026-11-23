@@ -78,7 +78,7 @@ function OwnerPage() {
     }
 
     if (mode === "signup") {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: OWNER_EMAIL,
         password,
         options: {
@@ -88,8 +88,14 @@ function OwnerPage() {
 
       if (error) {
         setMessage(error.message);
+      } else if (data.session && data.user) {
+        await verifyOwner(data.user.id);
       } else {
-        setMessage("تم إنشاء الحساب. راجع بريدك الإلكتروني واضغط رابط التأكيد، ثم ارجع إلى هنا لتسجيل الدخول.");
+        setMode("login");
+        setPassword("");
+        setMessage(
+          "تم إرسال طلب إنشاء الحساب. إذا كان تأكيد البريد مطلوبًا، أكّد بريدك أولًا، ثم سجّل الدخول."
+        );
       }
     } else {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -125,10 +131,13 @@ function OwnerPage() {
           <div className="mb-4 flex size-16 items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-400/10 text-amber-300">
             <Coffee className="size-8" />
           </div>
+
           <p className="text-xs font-semibold tracking-[0.28em] text-amber-300">
             LITTLE CAFE COMMAND
           </p>
+
           <h1 className="mt-3 text-2xl font-bold">بوابة المالك</h1>
+
           <p className="mt-2 text-sm text-white/55">
             منطقة إدارية خاصة بالمالك
           </p>
@@ -142,11 +151,20 @@ function OwnerPage() {
           ) : authorized ? (
             <div className="space-y-5 text-center">
               <ShieldCheck className="mx-auto size-12 text-emerald-300" />
-              <h2 className="text-xl font-semibold">تم تسجيل دخول المالك</h2>
+
+              <h2 className="text-xl font-semibold">
+                تم تسجيل دخول المالك
+              </h2>
+
               <p className="text-sm text-white/55">
                 تم التحقق من صلاحيات حسابك.
               </p>
-              <Button onClick={handleSignOut} variant="outline" className="w-full">
+
+              <Button
+                onClick={handleSignOut}
+                variant="outline"
+                className="w-full"
+              >
                 تسجيل الخروج
               </Button>
             </div>
@@ -154,19 +172,28 @@ function OwnerPage() {
             <>
               <div className="mb-6 flex items-center gap-3">
                 <LockKeyhole className="size-6 text-amber-300" />
+
                 <div>
                   <h2 className="font-semibold">
-                    {mode === "signup" ? "إنشاء حساب المالك" : "تسجيل دخول المالك"}
+                    {mode === "signup"
+                      ? "إنشاء حساب المالك"
+                      : "تسجيل دخول المالك"}
                   </h2>
+
                   <p className="mt-1 text-xs text-white/45">
-                    {mode === "signup" ? "إنشاء الحساب لأول مرة" : "ادخل بيانات حسابك"}
+                    {mode === "signup"
+                      ? "إنشاء الحساب لأول مرة"
+                      : "ادخل بيانات حسابك"}
                   </p>
                 </div>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="owner-email">البريد الإلكتروني</Label>
+                  <Label htmlFor="owner-email">
+                    البريد الإلكتروني
+                  </Label>
+
                   <Input
                     id="owner-email"
                     type="email"
@@ -178,7 +205,10 @@ function OwnerPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="owner-password">كلمة المرور</Label>
+                  <Label htmlFor="owner-password">
+                    كلمة المرور
+                  </Label>
+
                   <div className="relative">
                     <Input
                       id="owner-password"
@@ -187,23 +217,33 @@ function OwnerPage() {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={8}
-                      autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                      autoComplete={
+                        mode === "signup"
+                          ? "new-password"
+                          : "current-password"
+                      }
                       placeholder="8 أحرف على الأقل"
                       dir="ltr"
                       className="h-12 border-white/10 bg-black/20 pl-12 text-left text-white"
                     />
+
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50"
                     >
-                      {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                      {showPassword
+                        ? <EyeOff size={17} />
+                        : <Eye size={17} />}
                     </button>
                   </div>
                 </div>
 
                 {message && (
-                  <p role="alert" className="rounded-lg border border-amber-400/20 bg-amber-400/10 px-3 py-3 text-sm leading-6 text-amber-100">
+                  <p
+                    role="alert"
+                    className="rounded-lg border border-amber-400/20 bg-amber-400/10 px-3 py-3 text-sm leading-6 text-amber-100"
+                  >
                     {message}
                   </p>
                 )}
@@ -240,7 +280,9 @@ function OwnerPage() {
 
         <div className="mt-5 flex items-center justify-center gap-2 text-xs text-white/35">
           <Store size={14} />
-          <span>حساب المالك منفصل عن حسابات الكافيهات والموظفين</span>
+          <span>
+            حساب المالك منفصل عن حسابات الكافيهات والموظفين
+          </span>
         </div>
       </section>
     </main>
