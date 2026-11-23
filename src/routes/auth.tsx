@@ -1,3 +1,4 @@
+
 import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Coffee, Loader2, ArrowRight } from "lucide-react";
@@ -8,8 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { friendlyError } from "@/lib/errors";
-
-type Mode = "choose" | "signup" | "login";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -32,89 +31,35 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const [mode, setMode] = useState<Mode>("choose");
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [isRegister, setIsRegister] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) {
-        navigate({
-          to: search.redirect ?? "/app",
-          replace: true,
-        });
+        navigate({ to: search.redirect ?? "/app", replace: true });
       }
     });
   }, [navigate, search.redirect]);
 
-  async function registerCafe(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-
-    const form = new FormData(e.currentTarget);
-
-    const cafeName = String(form.get("cafeName") ?? "").trim();
-    const ownerName = String(form.get("ownerName") ?? "").trim();
-    const phone = String(form.get("phone") ?? "").trim();
-    const email = String(form.get("email") ?? "").trim();
-    const password = String(form.get("password") ?? "");
-    const address = String(form.get("address") ?? "").trim();
-
-    if (!cafeName || !ownerName || !phone || !email || !password || !address) {
-      toast.error("من فضلك أكمل جميع البيانات");
-      return;
-    }
-
-    if (password.length < 8) {
-      toast.error("كلمة المرور يجب ألا تقل عن 8 أحرف");
-      return;
-    }
-
+  async function continueWithGoogle() {
     setBusy(true);
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
       options: {
-        data: {
-          owner_name: ownerName,
-          cafe_name: cafeName,
-          phone,
-          address,
-        },
+        redirectTo: `${window.location.origin}${search.redirect ?? "/app"}`,
       },
     });
 
     if (error) {
       setBusy(false);
       toast.error(friendlyError(error));
-      return;
     }
-
-    if (!data.session) {
-      setBusy(false);
-      toast.error(
-        "تم إنشاء حساب البريد، لكن تأكيد البريد الإلكتروني ما زال مطلوبًا. لم يتم إنشاء الكافيه."
-      );
-      return;
-    }
-
-    const { error: cafeError } = await supabase.rpc("create_cafe", {
-      _name: cafeName,
-      _phone: phone,
-      _address: address,
-      _currency: "EGP",
-    });
-
-    if (cafeError) {
-      setBusy(false);
-      toast.error(friendlyError(cafeError));
-      return;
-    }
-
-    toast.success("تم إنشاء حساب الكافيه بنجاح");
-    navigate({ to: "/app", replace: true });
   }
 
-  async function loginCafe(e: FormEvent<HTMLFormElement>) {
+  async function submitEmail(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     const form = new FormData(e.currentTarget);
@@ -126,15 +71,46 @@ function AuthPage() {
       return;
     }
 
+    if (isRegister && password.length < 8) {
+      toast.error("كلمة المرور يجب ألا تقل عن 8 أحرف");
+      return;
+    }
+
     setBusy(true);
+
+    if (isRegister) {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      setBusy(false);
+
+      if (error) {
+        toast.error(friendlyError(error));
+        return;
+      }
+
+      if (!data.session) {
+        toast.error(
+          "الحساب اتسجل، لكن Supabase ما زال يطلب تأكيد البريد. راجع إعداد Confirm Email."
+        );
+        return;
+      }
+
+      toast.success("تم إنشاء الحساب. أكمل بيانات الكافيه.");
+      navigate({ to: "/app", replace: true });
+      return;
+    }
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
+    setBusy(false);
+
     if (error) {
-      setBusy(false);
       toast.error(friendlyError(error));
       return;
     }
@@ -160,41 +136,51 @@ function AuthPage() {
         </Link>
 
         <div className="rounded-2xl border border-[#6d5525] bg-[#111111] p-6 shadow-2xl sm:p-8">
-          {mode === "choose" && (
+          {!showEmailForm ? (
             <>
               <div className="mb-8 text-center">
                 <h1 className="text-2xl font-bold text-[#d6b45c]">
                   أهلاً بك في CAFE OS
                 </h1>
+
                 <p className="mt-2 text-sm text-gray-400">
-                  اختر طريقة المتابعة
+                  سجل دخولك أو أنشئ حسابك للمتابعة
                 </p>
               </div>
 
               <div className="space-y-4">
                 <Button
-                  onClick={() => setMode("signup")}
+                  onClick={continueWithGoogle}
+                  disabled={busy}
                   className="h-14 w-full bg-[#d6b45c] text-base font-bold text-black hover:bg-[#bd9b43]"
                 >
-                  إنشاء كافيه جديد
+                  {busy && (
+                    <Loader2 className="ml-2 size-4 animate-spin" />
+                  )}
+                  المتابعة باستخدام Google
                 </Button>
 
                 <Button
-                  onClick={() => setMode("login")}
+                  onClick={() => setShowEmailForm(true)}
                   variant="outline"
                   className="h-14 w-full border-[#6d5525] bg-transparent text-base font-bold text-[#d6b45c] hover:bg-[#242018]"
                 >
-                  لديّ حساب كافيه بالفعل
+                  المتابعة باستخدام Gmail وكلمة مرور
                 </Button>
               </div>
-            </>
-          )}
 
-          {mode === "signup" && (
+              <p className="mt-5 text-center text-xs text-gray-500">
+                لن نطلب منك كلمة مرور Gmail؛ استخدم كلمة مرور خاصة بنظام CAFE OS.
+              </p>
+            </>
+          ) : (
             <>
               <button
                 type="button"
-                onClick={() => setMode("choose")}
+                onClick={() => {
+                  setShowEmailForm(false);
+                  setIsRegister(false);
+                }}
                 className="mb-5 flex items-center gap-2 text-sm text-gray-400 hover:text-[#d6b45c]"
               >
                 <ArrowRight className="size-4" />
@@ -202,32 +188,16 @@ function AuthPage() {
               </button>
 
               <h1 className="text-2xl font-bold text-[#d6b45c]">
-                تسجيل كافيه جديد
+                {isRegister ? "إنشاء حساب جديد" : "تسجيل الدخول"}
               </h1>
+
               <p className="mb-6 mt-2 text-sm text-gray-400">
-                أدخل بيانات الكافيه والمالك لإنشاء حسابك
+                {isRegister
+                  ? "اكتب بريدك وأنشئ كلمة مرور خاصة بالنظام"
+                  : "أدخل بريدك وكلمة مرور CAFE OS"}
               </p>
 
-              <form onSubmit={registerCafe} className="space-y-4">
-                <Field label="اسم الكافيه" name="cafeName">
-                  <Input name="cafeName" required maxLength={120} />
-                </Field>
-
-                <Field label="اسم المالك" name="ownerName">
-                  <Input name="ownerName" required maxLength={120} />
-                </Field>
-
-                <Field label="رقم الهاتف" name="phone">
-                  <Input
-                    name="phone"
-                    type="tel"
-                    dir="ltr"
-                    required
-                    maxLength={30}
-                    placeholder="01xxxxxxxxx"
-                  />
-                </Field>
-
+              <form onSubmit={submitEmail} className="space-y-4">
                 <Field label="البريد الإلكتروني Gmail" name="email">
                   <Input
                     name="email"
@@ -238,67 +208,15 @@ function AuthPage() {
                   />
                 </Field>
 
-                <Field label="كلمة المرور" name="password">
+                <Field label="كلمة مرور CAFE OS" name="password">
                   <Input
                     name="password"
                     type="password"
                     required
-                    minLength={8}
-                    autoComplete="new-password"
-                  />
-                </Field>
-
-                <Field label="عنوان الكافيه" name="address">
-                  <Input name="address" required maxLength={200} />
-                </Field>
-
-                <Button
-                  type="submit"
-                  disabled={busy}
-                  className="h-12 w-full bg-[#d6b45c] font-bold text-black hover:bg-[#bd9b43]"
-                >
-                  {busy && <Loader2 className="ml-2 size-4 animate-spin" />}
-                  إنشاء حساب الكافيه
-                </Button>
-              </form>
-            </>
-          )}
-
-          {mode === "login" && (
-            <>
-              <button
-                type="button"
-                onClick={() => setMode("choose")}
-                className="mb-5 flex items-center gap-2 text-sm text-gray-400 hover:text-[#d6b45c]"
-              >
-                <ArrowRight className="size-4" />
-                رجوع
-              </button>
-
-              <h1 className="text-2xl font-bold text-[#d6b45c]">
-                دخول الكافيه
-              </h1>
-              <p className="mb-6 mt-2 text-sm text-gray-400">
-                سجل الدخول بالبريد الإلكتروني وكلمة المرور
-              </p>
-
-              <form onSubmit={loginCafe} className="space-y-4">
-                <Field label="البريد الإلكتروني" name="email">
-                  <Input
-                    name="email"
-                    type="email"
-                    dir="ltr"
-                    required
-                    autoComplete="email"
-                  />
-                </Field>
-
-                <Field label="كلمة المرور" name="password">
-                  <Input
-                    name="password"
-                    type="password"
-                    required
-                    autoComplete="current-password"
+                    minLength={isRegister ? 8 : undefined}
+                    autoComplete={
+                      isRegister ? "new-password" : "current-password"
+                    }
                   />
                 </Field>
 
@@ -307,10 +225,28 @@ function AuthPage() {
                   disabled={busy}
                   className="h-12 w-full bg-[#d6b45c] font-bold text-black hover:bg-[#bd9b43]"
                 >
-                  {busy && <Loader2 className="ml-2 size-4 animate-spin" />}
-                  تسجيل الدخول
+                  {busy && (
+                    <Loader2 className="ml-2 size-4 animate-spin" />
+                  )}
+                  {isRegister
+                    ? "إنشاء الحساب والمتابعة"
+                    : "تسجيل الدخول"}
                 </Button>
               </form>
+
+              <div className="mt-5 text-center text-sm text-gray-400">
+                {isRegister
+                  ? "لديك حساب بالفعل؟"
+                  : "أول مرة تستخدم النظام؟"}
+
+                <button
+                  type="button"
+                  onClick={() => setIsRegister((value) => !value)}
+                  className="mr-2 font-bold text-[#d6b45c] hover:underline"
+                >
+                  {isRegister ? "تسجيل الدخول" : "إنشاء حساب"}
+                </button>
+              </div>
             </>
           )}
 
