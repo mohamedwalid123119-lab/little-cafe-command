@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { DirectionProvider } from "@radix-ui/react-direction";
+import { useRouterState } from "@tanstack/react-router";
 
 export type AppLanguage = "ar" | "en";
 export type AppTheme = "light" | "dark";
@@ -33,8 +34,10 @@ function readPreferences(): { language: AppLanguage; theme: AppTheme } {
 
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY);
+
     if (saved) {
       const parsed = JSON.parse(saved);
+
       return {
         language: parsed.language === "en" ? "en" : "ar",
         theme: parsed.theme === "dark" ? "dark" : "light",
@@ -52,9 +55,18 @@ export function AppPreferencesProvider({
 }: {
   children: ReactNode;
 }) {
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+
   const [language, setLanguageState] = useState<AppLanguage>("ar");
   const [theme, setThemeState] = useState<AppTheme>("light");
   const [ready, setReady] = useState(false);
+
+  const isAppRoute =
+    pathname === "/app" || pathname.startsWith("/app/");
+
+  const effectiveLanguage: AppLanguage = isAppRoute ? language : "ar";
 
   useEffect(() => {
     const saved = readPreferences();
@@ -66,8 +78,9 @@ export function AppPreferencesProvider({
   useEffect(() => {
     if (!ready) return;
 
-    const direction = language === "ar" ? "rtl" : "ltr";
-    document.documentElement.lang = language;
+    const direction = effectiveLanguage === "ar" ? "rtl" : "ltr";
+
+    document.documentElement.lang = effectiveLanguage;
     document.documentElement.dir = direction;
     document.documentElement.classList.toggle("dark", theme === "dark");
     document.documentElement.style.colorScheme = theme;
@@ -76,7 +89,7 @@ export function AppPreferencesProvider({
       STORAGE_KEY,
       JSON.stringify({ language, theme }),
     );
-  }, [language, theme, ready]);
+  }, [language, effectiveLanguage, theme, ready]);
 
   const setLanguage = useCallback((value: AppLanguage) => {
     setLanguageState(value);
@@ -108,7 +121,7 @@ export function AppPreferencesProvider({
 
   return (
     <PreferencesContext.Provider value={value}>
-      <DirectionProvider dir={language === "ar" ? "rtl" : "ltr"}>
+      <DirectionProvider dir={effectiveLanguage === "ar" ? "rtl" : "ltr"}>
         {children}
       </DirectionProvider>
     </PreferencesContext.Provider>
