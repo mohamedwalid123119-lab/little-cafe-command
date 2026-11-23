@@ -1,31 +1,36 @@
 
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Coffee, Eye, EyeOff, LockKeyhole, ShieldCheck, Store } from "lucide-react";
+import {
+  Coffee, Eye, EyeOff, LockKeyhole, ShieldCheck, Store,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 
+const OWNER_EMAIL = "Mohamedwalid123119@gmail.com";
+
 export const Route = createFileRoute("/owner")({
   head: () => ({
     meta: [
-      { title: "دخول المالك — Little Cafe Command" },
+      { title: "بوابة المالك — Little Cafe Command" },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
-  component: OwnerLoginPage,
+  component: OwnerPage,
 });
 
-function OwnerLoginPage() {
-  const [email, setEmail] = useState("");
+function OwnerPage() {
+  const [mode, setMode] = useState<"signup" | "login">("signup");
+  const [email, setEmail] = useState(OWNER_EMAIL);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
-  const [message, setMessage] = useState("");
   const [authorized, setAuthorized] = useState(false);
+  const [message, setMessage] = useState("");
 
   async function verifyOwner(userId: string) {
     const { data, error } = await supabase
@@ -35,14 +40,10 @@ function OwnerLoginPage() {
       .eq("role", "platform_admin")
       .maybeSingle();
 
-    if (error) {
-      setMessage("تعذر التحقق من صلاحيات الحساب. حاول مرة أخرى.");
-      return false;
-    }
-
-    if (!data) {
+    if (error || !data) {
       await supabase.auth.signOut();
-      setMessage("هذا الحساب لا يملك صلاحية دخول لوحة المالك.");
+      setAuthorized(false);
+      setMessage("الحساب لم يحصل على صلاحية المالك حتى الآن.");
       return false;
     }
 
@@ -70,18 +71,39 @@ function OwnerLoginPage() {
     setLoading(true);
     setMessage("");
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-
-    if (error || !data.user) {
-      setMessage("البريد الإلكتروني أو كلمة المرور غير صحيحة.");
+    if (email.trim().toLowerCase() !== OWNER_EMAIL.toLowerCase()) {
+      setMessage("التسجيل متاح لبريد المالك المحدد فقط.");
       setLoading(false);
       return;
     }
 
-    await verifyOwner(data.user.id);
+    if (mode === "signup") {
+      const { error } = await supabase.auth.signUp({
+        email: OWNER_EMAIL,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/owner`,
+        },
+      });
+
+      if (error) {
+        setMessage(error.message);
+      } else {
+        setMessage("تم إنشاء الحساب. راجع بريدك الإلكتروني واضغط رابط التأكيد، ثم ارجع إلى هنا لتسجيل الدخول.");
+      }
+    } else {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: OWNER_EMAIL,
+        password,
+      });
+
+      if (error || !data.user) {
+        setMessage("تعذر تسجيل الدخول. راجع البريد وكلمة المرور وتأكيد البريد.");
+      } else {
+        await verifyOwner(data.user.id);
+      }
+    }
+
     setLoading(false);
   }
 
@@ -89,6 +111,7 @@ function OwnerLoginPage() {
     await supabase.auth.signOut();
     setAuthorized(false);
     setPassword("");
+    setMode("login");
     setMessage("");
   }
 
@@ -99,7 +122,7 @@ function OwnerLoginPage() {
 
       <section className="relative z-10 w-full max-w-md">
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-4 flex size-16 items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-400/10 text-amber-300 shadow-lg">
+          <div className="mb-4 flex size-16 items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-400/10 text-amber-300">
             <Coffee className="size-8" />
           </div>
           <p className="text-xs font-semibold tracking-[0.28em] text-amber-300">
@@ -107,104 +130,80 @@ function OwnerLoginPage() {
           </p>
           <h1 className="mt-3 text-2xl font-bold">بوابة المالك</h1>
           <p className="mt-2 text-sm text-white/55">
-            منطقة إدارية خاصة — الدخول للمصرّح لهم فقط
+            منطقة إدارية خاصة بالمالك
           </p>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-6 shadow-2xl sm:p-8">
           {checking ? (
-            <div className="py-10 text-center text-sm text-white/60">
-              جارٍ التحقق من الجلسة...
-            </div>
+            <p className="py-10 text-center text-sm text-white/60">
+              جارٍ التحقق...
+            </p>
           ) : authorized ? (
             <div className="space-y-5 text-center">
-              <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-emerald-400/10 text-emerald-300">
-                <ShieldCheck className="size-7" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold">
-                  تم التحقق من صلاحية المالك
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-white/55">
-                  تم تسجيل الدخول بنجاح. سنربط هذه البوابة بلوحة إدارة الكافيهات في الخطوة التالية.
-                </p>
-              </div>
-              <Button
-                onClick={handleSignOut}
-                variant="outline"
-                className="w-full border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-              >
+              <ShieldCheck className="mx-auto size-12 text-emerald-300" />
+              <h2 className="text-xl font-semibold">تم تسجيل دخول المالك</h2>
+              <p className="text-sm text-white/55">
+                تم التحقق من صلاحيات حسابك.
+              </p>
+              <Button onClick={handleSignOut} variant="outline" className="w-full">
                 تسجيل الخروج
               </Button>
             </div>
           ) : (
             <>
               <div className="mb-6 flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-white/5 text-amber-300">
-                  <LockKeyhole className="size-5" />
-                </div>
+                <LockKeyhole className="size-6 text-amber-300" />
                 <div>
-                  <h2 className="font-semibold">تسجيل دخول المالك</h2>
+                  <h2 className="font-semibold">
+                    {mode === "signup" ? "إنشاء حساب المالك" : "تسجيل دخول المالك"}
+                  </h2>
                   <p className="mt-1 text-xs text-white/45">
-                    استخدم بريدك وكلمة المرور المسجلين
+                    {mode === "signup" ? "إنشاء الحساب لأول مرة" : "ادخل بيانات حسابك"}
                   </p>
                 </div>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="owner-email" className="text-white/80">
-                    البريد الإلكتروني
-                  </Label>
+                  <Label htmlFor="owner-email">البريد الإلكتروني</Label>
                   <Input
                     id="owner-email"
                     type="email"
-                    autoComplete="username"
-                    placeholder="name@gmail.com"
                     value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    required
+                    readOnly
                     dir="ltr"
-                    className="h-12 border-white/10 bg-black/20 text-left text-white placeholder:text-white/25 focus-visible:ring-amber-400"
+                    className="h-12 border-white/10 bg-black/20 text-left text-white"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="owner-password" className="text-white/80">
-                    كلمة المرور
-                  </Label>
+                  <Label htmlFor="owner-password">كلمة المرور</Label>
                   <div className="relative">
                     <Input
                       id="owner-password"
                       type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      placeholder="أدخل كلمة المرور"
                       value={password}
-                      onChange={(event) => setPassword(event.target.value)}
+                      onChange={(e) => setPassword(e.target.value)}
                       required
+                      minLength={8}
+                      autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                      placeholder="8 أحرف على الأقل"
                       dir="ltr"
-                      className="h-12 border-white/10 bg-black/20 pl-12 text-left text-white placeholder:text-white/25 focus-visible:ring-amber-400"
+                      className="h-12 border-white/10 bg-black/20 pl-12 text-left text-white"
                     />
                     <button
                       type="button"
-                      onClick={() => setShowPassword((value) => !value)}
-                      aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-white/45 hover:text-white"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50"
                     >
-                      {showPassword ? (
-                        <EyeOff className="size-4" />
-                      ) : (
-                        <Eye className="size-4" />
-                      )}
+                      {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                     </button>
                   </div>
                 </div>
 
                 {message && (
-                  <p
-                    role="alert"
-                    className="rounded-lg border border-red-400/20 bg-red-400/10 px-3 py-2.5 text-sm leading-6 text-red-200"
-                  >
+                  <p role="alert" className="rounded-lg border border-amber-400/20 bg-amber-400/10 px-3 py-3 text-sm leading-6 text-amber-100">
                     {message}
                   </p>
                 )}
@@ -212,17 +211,35 @@ function OwnerLoginPage() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="h-12 w-full bg-amber-400 font-semibold text-[#17130a] hover:bg-amber-300 disabled:opacity-60"
+                  className="h-12 w-full bg-amber-400 font-semibold text-black hover:bg-amber-300"
                 >
-                  {loading ? "جارٍ تسجيل الدخول..." : "دخول لوحة المالك"}
+                  {loading
+                    ? "جارٍ التنفيذ..."
+                    : mode === "signup"
+                      ? "إنشاء حساب المالك"
+                      : "تسجيل الدخول"}
                 </Button>
               </form>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMode(mode === "signup" ? "login" : "signup");
+                  setMessage("");
+                  setPassword("");
+                }}
+                className="mt-5 w-full text-center text-sm text-amber-300 hover:text-amber-200"
+              >
+                {mode === "signup"
+                  ? "لدي حساب بالفعل — تسجيل الدخول"
+                  : "إنشاء حساب المالك لأول مرة"}
+              </button>
             </>
           )}
         </div>
 
         <div className="mt-5 flex items-center justify-center gap-2 text-xs text-white/35">
-          <Store className="size-3.5" />
+          <Store size={14} />
           <span>حساب المالك منفصل عن حسابات الكافيهات والموظفين</span>
         </div>
       </section>
