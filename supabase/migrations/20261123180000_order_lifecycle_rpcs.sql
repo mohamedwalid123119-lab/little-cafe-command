@@ -1,3 +1,4 @@
+
 -- Little Cafe Command
 -- Order lifecycle RPCs
 -- Requires:
@@ -72,6 +73,11 @@ begin
 
   if coalesce(_order_type, '') not in ('dine_in', 'takeaway', 'delivery') then
     raise exception 'نوع الطلب غير صحيح';
+  end if;
+
+  if _order_type = 'dine_in'
+     and nullif(trim(coalesce(_table_label, '')), '') is null then
+    raise exception 'يجب تحديد رقم الطاولة';
   end if;
 
   if _table_label is not null and char_length(trim(_table_label)) > 80 then
@@ -261,7 +267,7 @@ begin
     on r.id = v.recipe_id
     and r.tenant_id = _tenant;
 
-  -- Deliberately no inventory movements here.
+  -- No inventory movement before payment.
   return v_order;
 end;
 $function$;
@@ -269,8 +275,7 @@ $function$;
 
 -- =========================================================
 -- 2. UPDATE AN UNPAID ORDER
--- Replaces the current item list with the supplied list.
--- Allowed before sending, or after a barista rejection.
+-- NULL table/notes parameters preserve existing values.
 -- =========================================================
 
 create or replace function public.update_draft_order(
@@ -295,6 +300,7 @@ declare
   v_tax numeric := 0;
   v_total numeric := 0;
   v_type text;
+  v_effective_table text;
   v_item record;
 begin
   if v_uid is null then
@@ -361,6 +367,16 @@ begin
 
   if v_type not in ('dine_in', 'takeaway', 'delivery') then
     raise exception 'نوع الطلب غير صحيح';
+  end if;
+
+  v_effective_table := coalesce(
+    nullif(trim(_table_label), ''),
+    v_order.table_label
+  );
+
+  if v_type = 'dine_in'
+     and nullif(trim(coalesce(v_effective_table, '')), '') is null then
+    raise exception 'يجب تحديد رقم الطاولة';
   end if;
 
   if _table_label is not null and char_length(trim(_table_label)) > 80 then
@@ -488,12 +504,15 @@ begin
   update public.orders
   set
     order_type = v_type,
-    table_label = nullif(left(trim(coalesce(_table_label, '')), 80), ''),
+    table_label = nullif(left(trim(coalesce(v_effective_table, '')), 80), ''),
     subtotal = v_sub,
     discount = v_disc,
     tax = v_tax,
     total = v_total,
-    notes = nullif(left(trim(coalesce(_notes, '')), 500), ''),
+    notes = nullif(
+      left(trim(coalesce(_notes, v_order.notes, '')), 500),
+      ''
+    ),
     barista_status = 'not_sent',
     barista_rejection_reason = null,
     barista_responded_at = null,
@@ -589,7 +608,6 @@ $function$;
 -- =========================================================
 -- 4. PAY ORDER AND CONSUME FIFO INVENTORY
 -- No stock is consumed before this function is called.
--- The payment and inventory movements share one transaction.
 -- =========================================================
 
 create or replace function public.pay_order(
@@ -675,9 +693,8 @@ begin
 
   v_number := v_order.order_number;
 
-  -- Preserve saved prices, discount and tax from the open order.
-  -- Insert negative movements; existing triggers perform FIFO costing
-  -- and reject insufficient stock. Any error rolls back the whole payment.
+  -- Existing inventory triggers handle FIFO costing and stock validation.
+  -- Any inventory error rolls back the payment transaction.
   insert into public.inventory_movements (
     tenant_id,
     branch_id,
@@ -738,12 +755,32 @@ $function$;
 
 
 -- =========================================================
--- 5. RPC PERMISSIONS
+-- 5. ONE ACTIVE UNPAID DINE-IN ORDER PER TABLE
+-- Takeaway and delivery orders are not restricted by this index.
+-- =========================================================
+
+create unique index if not exists
+  uq_orders_one_unpaid_order_per_table
+on public.orders (
+  tenant_id,
+  branch_id,
+  lower(btrim(table_label))
+)
+where order_type = 'dine_in'
+  and table_label is not null
+  and status in ('draft', 'pending')
+  and payment_status = 'unpaid'
+  and deleted_at is null;
+
+
+-- =========================================================
+-- 6. RPC PERMISSIONS
 -- =========================================================
 
 revoke all on function public.create_draft_order(
   uuid, uuid, jsonb, text, text, numeric, text
 ) from public, anon;
+
 grant execute on function public.create_draft_order(
   uuid, uuid, jsonb, text, text, numeric, text
 ) to authenticated;
@@ -751,17 +788,20 @@ grant execute on function public.create_draft_order(
 revoke all on function public.update_draft_order(
   uuid, jsonb, text, text, numeric, text
 ) from public, anon;
+
 grant execute on function public.update_draft_order(
   uuid, jsonb, text, text, numeric, text
 ) to authenticated;
 
 revoke all on function public.send_order_to_barista(uuid)
   from public, anon;
+
 grant execute on function public.send_order_to_barista(uuid)
   to authenticated;
 
 revoke all on function public.pay_order(uuid, text)
   from public, anon;
+
 grant execute on function public.pay_order(uuid, text)
   to authenticated;
 
