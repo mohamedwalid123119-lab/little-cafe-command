@@ -1,4 +1,3 @@
-
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Coffee, Loader2 } from "lucide-react";
@@ -15,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAppPreferences } from "@/components/app-preferences";
 import { supabase } from "@/integrations/supabase/client";
 import { friendlyError } from "@/lib/errors";
 import { CURRENCIES, cafeSchema, type CafeInput } from "@/lib/onboarding";
@@ -26,10 +24,12 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
     const memberships = await context.queryClient.fetchQuery(
       q.myMemberships(context.user.id),
     );
+
     if (memberships.length > 0) {
       throw redirect({ to: "/app", replace: true });
     }
   },
+
   head: () => ({
     meta: [
       { title: "أنشئ الكافيه الخاص بك — CAFE OS" },
@@ -46,6 +46,7 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+
   component: Onboarding,
 });
 
@@ -55,11 +56,6 @@ function Onboarding() {
   const { user } = Route.useRouteContext();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { language } = useAppPreferences();
-
-  const en = language === "en";
-  const t = (ar: string, english: string) => en ? english : ar;
-  const direction = en ? "ltr" : "rtl";
 
   const [currency, setCurrency] = useState<string>("EGP");
   const [errors, setErrors] = useState<Errors>({});
@@ -108,16 +104,14 @@ function Onboarding() {
 
     await queryClient.fetchQuery(q.myMemberships(user.id));
 
-    toast.success(
-      t("تم إنشاء الكافيه بنجاح", "Cafe created successfully"),
-    );
+    toast.success("تم إنشاء الكافيه بنجاح");
 
     navigate({ to: "/app", replace: true });
   }
 
   return (
     <div
-      dir={direction}
+      dir="rtl"
       className="flex min-h-screen items-center justify-center bg-background px-4 py-10"
     >
       <div className="w-full max-w-lg">
@@ -128,14 +122,12 @@ function Onboarding() {
 
         <div className="rounded-xl border bg-card p-6 shadow-sm md:p-8">
           <h1 className="text-xl font-semibold text-foreground md:text-2xl">
-            {t("أنشئ الكافيه الخاص بك", "Create Your Cafe")}
+            أنشئ الكافيه الخاص بك
           </h1>
 
           <p className="mt-1 text-sm text-muted-foreground">
-            {t(
-              "اكتب بيانات الكافيه للبدء. ستكون أنت المالك، ويمكنك تعديل الاسم والهاتف لاحقاً من الإعدادات.",
-              "Enter your cafe details to get started. You will be the owner and can update the name and phone number later from settings.",
-            )}
+            اكتب بيانات الكافيه للبدء. ستكون أنت المالك، ويمكنك تعديل الاسم
+            والهاتف لاحقاً من الإعدادات.
           </p>
 
           <form
@@ -144,7 +136,7 @@ function Onboarding() {
             className="mt-6 space-y-4"
           >
             <Field
-              label={t("اسم الكافيه", "Cafe Name")}
+              label="اسم الكافيه"
               name="name"
               error={errors.name}
               required
@@ -156,18 +148,15 @@ function Onboarding() {
                 maxLength={120}
                 autoComplete="organization"
                 aria-invalid={!!errors.name}
-                placeholder={t("اكتب اسم الكافيه", "Enter cafe name")}
+                placeholder="اكتب اسم الكافيه"
               />
             </Field>
 
             <Field
-              label={t("العنوان", "Address")}
+              label="العنوان"
               name="address"
               error={errors.address}
-              hint={t(
-                "اختياري — عنوان الفرع الرئيسي",
-                "Optional — Main branch address",
-              )}
+              hint="اختياري — عنوان الفرع الرئيسي"
             >
               <Input
                 id="address"
@@ -176,15 +165,15 @@ function Onboarding() {
                 maxLength={200}
                 autoComplete="street-address"
                 aria-invalid={!!errors.address}
-                placeholder={t("عنوان الكافيه", "Cafe address")}
+                placeholder="عنوان الكافيه"
               />
             </Field>
 
             <Field
-              label={t("رقم الهاتف", "Phone Number")}
+              label="رقم الهاتف"
               name="phone"
               error={errors.phone}
-              hint={t("اختياري", "Optional")}
+              hint="اختياري"
             >
               <Input
                 id="phone"
@@ -200,13 +189,10 @@ function Onboarding() {
             </Field>
 
             <Field
-              label={t("العملة", "Currency")}
+              label="العملة"
               name="currency"
               error={errors.currency}
-              hint={t(
-                "لا يمكن تغيير العملة بعد إنشاء الكافيه",
-                "Currency cannot be changed after creating the cafe",
-              )}
+              hint="لا يمكن تغيير العملة بعد إنشاء الكافيه"
             >
               <Select
                 value={currency}
@@ -235,9 +221,8 @@ function Onboarding() {
               {busy && (
                 <Loader2 className="size-4 animate-spin" />
               )}
-              {busy
-                ? t("جارٍ إنشاء الكافيه...", "Creating Cafe...")
-                : t("إنشاء الكافيه", "Create Cafe")}
+
+              {busy ? "جارٍ إنشاء الكافيه..." : "إنشاء الكافيه"}
             </Button>
           </form>
         </div>
