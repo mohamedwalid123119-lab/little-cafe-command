@@ -87,4 +87,4 @@ create policy "order events read"
 -- No direct event insert/update/delete permissions.
 -- These operations will be handled by secured database functions.
 
-commit;
+commit
