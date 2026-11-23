@@ -8,14 +8,15 @@ import {
 import { useState } from "react";
 
 import { ModulePage } from "@/components/module-page";
+import { useAppPreferences } from "@/components/app-preferences";
 import { q } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/app/settings")({
   head: () => ({
     meta: [
-      { title: "الإعدادات — CAFE OS" },
-      { name: "description", content: "إعدادات الكافيه والفروع والاشتراك." },
+      { title: "Settings — CAFE OS" },
+      { name: "description", content: "Cafe, branches and subscription settings." },
     ],
   }),
   component: Page,
@@ -23,34 +24,51 @@ export const Route = createFileRoute("/_authenticated/app/settings")({
 
 const authRoute = getRouteApi("/_authenticated");
 
-function money(value: number) {
-  return `${Number(value || 0).toLocaleString("ar-EG")} ج.م`;
+function money(value: number, language: "ar" | "en") {
+  return `${Number(value || 0).toLocaleString(language === "ar" ? "ar-EG" : "en-US")} ${language === "ar" ? "ج.م" : "EGP"}`;
 }
 
-function statusLabel(status: string) {
-  const labels: Record<string, string> = {
-    active: "نشط",
-    trialing: "فترة تجريبية",
-    trial: "فترة تجريبية",
-    past_due: "متأخر في السداد",
-    cancelled: "ملغي",
-    canceled: "ملغي",
-    expired: "منتهي",
-    suspended: "موقوف",
+function statusLabel(status: string, language: "ar" | "en") {
+  const labels = {
+    ar: {
+      active: "نشط",
+      trialing: "فترة تجريبية",
+      trial: "فترة تجريبية",
+      past_due: "متأخر في السداد",
+      cancelled: "ملغي",
+      canceled: "ملغي",
+      expired: "منتهي",
+      suspended: "موقوف",
+    },
+    en: {
+      active: "Active",
+      trialing: "Trial",
+      trial: "Trial",
+      past_due: "Payment overdue",
+      cancelled: "Cancelled",
+      canceled: "Cancelled",
+      expired: "Expired",
+      suspended: "Suspended",
+    },
   };
 
-  return labels[status] ?? status;
+  return labels[language][status as keyof typeof labels.ar] ?? status;
 }
 
 function Page() {
   const { user } = authRoute.useRouteContext();
+  const { language } = useAppPreferences();
+  const isAr = language === "ar";
+
   const { data: memberships } = useSuspenseQuery(q.myMemberships(user.id));
   const membership = memberships[0];
 
   if (!membership) {
     return (
       <ModulePage module="settings">
-        لا يوجد كافيه مرتبط بحسابك حتى الآن.
+        {isAr
+          ? "لا يوجد كافيه مرتبط بحسابك حتى الآن."
+          : "No cafe is linked to your account yet."}
       </ModulePage>
     );
   }
@@ -64,6 +82,11 @@ function Page() {
 
 function Settings({ tenantId }: { tenantId: string }) {
   const queryClient = useQueryClient();
+  const { language } = useAppPreferences();
+  const isAr = language === "ar";
+  const dir = isAr ? "rtl" : "ltr";
+
+  const tr = (ar: string, en: string) => isAr ? ar : en;
 
   const { data: tenant } = useSuspenseQuery(q.tenant(tenantId));
   const { data: branches } = useSuspenseQuery(q.branches(tenantId));
@@ -108,15 +131,21 @@ function Settings({ tenantId }: { tenantId: string }) {
       const vatValue = Number(vat);
 
       if (cleanName.length < 2) {
-        throw new Error("اسم الكافيه يجب ألا يقل عن حرفين.");
+        throw new Error(
+          tr("اسم الكافيه يجب ألا يقل عن حرفين.", "Cafe name must be at least 2 characters."),
+        );
       }
 
       if (!Number.isFinite(cost) || cost < 0 || cost > 100) {
-        throw new Error("نسبة تكلفة الخامات يجب أن تكون بين 0 و100.");
+        throw new Error(
+          tr("نسبة تكلفة الخامات يجب أن تكون بين 0 و100.", "Target ingredient cost must be between 0 and 100."),
+        );
       }
 
       if (!Number.isFinite(vatValue) || vatValue < 0 || vatValue > 100) {
-        throw new Error("نسبة الضريبة يجب أن تكون بين 0 و100.");
+        throw new Error(
+          tr("نسبة الضريبة يجب أن تكون بين 0 و100.", "VAT rate must be between 0 and 100."),
+        );
       }
 
       const { error } = await supabase
@@ -138,12 +167,12 @@ function Settings({ tenantId }: { tenantId: string }) {
     },
 
     onSuccess: async () => {
-      setMessage("تم حفظ إعدادات الكافيه بنجاح.");
+      setMessage(tr("تم حفظ إعدادات الكافيه بنجاح.", "Cafe settings saved successfully."));
       await refresh();
     },
 
     onError: (error: Error) => {
-      setMessage(error.message || "تعذر حفظ الإعدادات.");
+      setMessage(error.message || tr("تعذر حفظ الإعدادات.", "Could not save settings."));
     },
   });
 
@@ -152,7 +181,9 @@ function Settings({ tenantId }: { tenantId: string }) {
       const cleanName = branchName.trim();
 
       if (cleanName.length < 2) {
-        throw new Error("اكتب اسم الفرع بشكل صحيح.");
+        throw new Error(
+          tr("اكتب اسم الفرع بشكل صحيح.", "Enter a valid branch name."),
+        );
       }
 
       const payload = {
@@ -183,21 +214,25 @@ function Settings({ tenantId }: { tenantId: string }) {
 
     onSuccess: async () => {
       setMessage(
-        editingBranchId ? "تم تحديث بيانات الفرع." : "تمت إضافة الفرع.",
+        editingBranchId
+          ? tr("تم تحديث بيانات الفرع.", "Branch details updated.")
+          : tr("تمت إضافة الفرع.", "Branch added successfully."),
       );
       resetBranchForm();
       await refresh();
     },
 
     onError: (error: Error) => {
-      setMessage(error.message || "تعذر حفظ الفرع.");
+      setMessage(error.message || tr("تعذر حفظ الفرع.", "Could not save branch."));
     },
   });
 
   const toggleBranch = useMutation({
     mutationFn: async (branch: (typeof branches)[number]) => {
       if (branch.is_main) {
-        throw new Error("لا يمكن إيقاف الفرع الرئيسي.");
+        throw new Error(
+          tr("لا يمكن إيقاف الفرع الرئيسي.", "The main branch cannot be deactivated."),
+        );
       }
 
       const { error } = await supabase
@@ -210,12 +245,12 @@ function Settings({ tenantId }: { tenantId: string }) {
     },
 
     onSuccess: async () => {
-      setMessage("تم تحديث حالة الفرع.");
+      setMessage(tr("تم تحديث حالة الفرع.", "Branch status updated."));
       await refresh();
     },
 
     onError: (error: Error) => {
-      setMessage(error.message || "تعذر تحديث حالة الفرع.");
+      setMessage(error.message || tr("تعذر تحديث حالة الفرع.", "Could not update branch status."));
     },
   });
 
@@ -235,11 +270,16 @@ function Settings({ tenantId }: { tenantId: string }) {
   }
 
   return (
-    <div dir="rtl" className="space-y-6">
+    <div dir={dir} className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">إعدادات الكافيه</h2>
+        <h2 className="text-2xl font-bold">
+          {tr("إعدادات الكافيه", "Cafe Settings")}
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          بيانات النشاط والفروع والتكلفة والضريبة والاشتراك.
+          {tr(
+            "بيانات النشاط والفروع والتكلفة والضريبة والاشتراك.",
+            "Business details, branches, costs, tax and subscription.",
+          )}
         </p>
       </div>
 
@@ -250,12 +290,14 @@ function Settings({ tenantId }: { tenantId: string }) {
       )}
 
       <section className="rounded-xl border bg-card p-4">
-        <h3 className="mb-4 text-lg font-bold">بيانات الكافيه</h3>
+        <h3 className="mb-4 text-lg font-bold">
+          {tr("بيانات الكافيه", "Cafe Information")}
+        </h3>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm font-medium">
-              اسم الكافيه
+              {tr("اسم الكافيه", "Cafe Name")}
             </label>
             <input
               value={name}
@@ -267,7 +309,7 @@ function Settings({ tenantId }: { tenantId: string }) {
 
           <div>
             <label className="mb-2 block text-sm font-medium">
-              رقم الهاتف
+              {tr("رقم الهاتف", "Phone Number")}
             </label>
             <input
               value={phone}
@@ -279,7 +321,7 @@ function Settings({ tenantId }: { tenantId: string }) {
 
           <div>
             <label className="mb-2 block text-sm font-medium">
-              المدينة
+              {tr("المدينة", "City")}
             </label>
             <input
               value={city}
@@ -291,46 +333,46 @@ function Settings({ tenantId }: { tenantId: string }) {
 
           <div>
             <label className="mb-2 block text-sm font-medium">
-              العملة
+              {tr("العملة", "Currency")}
             </label>
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
               className="w-full rounded-lg border bg-background p-3"
             >
-              <option value="EGP">الجنيه المصري EGP</option>
-              <option value="SAR">الريال السعودي SAR</option>
-              <option value="AED">الدرهم الإماراتي AED</option>
-              <option value="USD">الدولار الأمريكي USD</option>
+              <option value="EGP">{tr("الجنيه المصري EGP", "Egyptian Pound EGP")}</option>
+              <option value="SAR">{tr("الريال السعودي SAR", "Saudi Riyal SAR")}</option>
+              <option value="AED">{tr("الدرهم الإماراتي AED", "UAE Dirham AED")}</option>
+              <option value="USD">{tr("الدولار الأمريكي USD", "US Dollar USD")}</option>
             </select>
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium">
-              المنطقة الزمنية
+              {tr("المنطقة الزمنية", "Time Zone")}
             </label>
             <select
               value={timezone}
               onChange={(e) => setTimezone(e.target.value)}
               className="w-full rounded-lg border bg-background p-3"
             >
-              <option value="Africa/Cairo">القاهرة</option>
-              <option value="Asia/Riyadh">الرياض</option>
-              <option value="Asia/Dubai">دبي</option>
+              <option value="Africa/Cairo">{tr("القاهرة", "Cairo")}</option>
+              <option value="Asia/Riyadh">{tr("الرياض", "Riyadh")}</option>
+              <option value="Asia/Dubai">{tr("دبي", "Dubai")}</option>
               <option value="UTC">UTC</option>
             </select>
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium">
-              لغة النظام
+              {tr("لغة النظام", "System Locale")}
             </label>
             <select
               value={locale}
               onChange={(e) => setLocale(e.target.value)}
               className="w-full rounded-lg border bg-background p-3"
             >
-              <option value="ar-EG">العربية</option>
+              <option value="ar-EG">{tr("العربية", "Arabic")}</option>
               <option value="en">English</option>
             </select>
           </div>
@@ -338,12 +380,14 @@ function Settings({ tenantId }: { tenantId: string }) {
       </section>
 
       <section className="rounded-xl border bg-card p-4">
-        <h3 className="mb-4 text-lg font-bold">إعدادات التكلفة والضريبة</h3>
+        <h3 className="mb-4 text-lg font-bold">
+          {tr("إعدادات التكلفة والضريبة", "Cost & Tax Settings")}
+        </h3>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm font-medium">
-              نسبة تكلفة الخامات المستهدفة %
+              {tr("نسبة تكلفة الخامات المستهدفة %", "Target Ingredient Cost %")}
             </label>
             <input
               type="number"
@@ -355,13 +399,16 @@ function Settings({ tenantId }: { tenantId: string }) {
               className="w-full rounded-lg border bg-background p-3"
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              تستخدم لمقارنة تكلفة الوصفات بالمبيعات.
+              {tr(
+                "تستخدم لمقارنة تكلفة الوصفات بالمبيعات.",
+                "Used to compare recipe costs against sales.",
+              )}
             </p>
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium">
-              نسبة ضريبة القيمة المضافة %
+              {tr("نسبة ضريبة القيمة المضافة %", "VAT Rate %")}
             </label>
             <input
               type="number"
@@ -383,7 +430,10 @@ function Settings({ tenantId }: { tenantId: string }) {
             className="h-4 w-4"
           />
           <span className="text-sm font-medium">
-            أسعار المنتجات تشمل الضريبة بالفعل
+            {tr(
+              "أسعار المنتجات تشمل الضريبة بالفعل",
+              "Product prices already include VAT",
+            )}
           </span>
         </label>
 
@@ -396,27 +446,34 @@ function Settings({ tenantId }: { tenantId: string }) {
           }}
           className="mt-4 w-full rounded-lg bg-primary p-3 font-semibold text-primary-foreground disabled:opacity-50 sm:w-auto"
         >
-          {saveSettings.isPending ? "جارٍ الحفظ..." : "حفظ إعدادات الكافيه"}
+          {saveSettings.isPending
+            ? tr("جارٍ الحفظ...", "Saving...")
+            : tr("حفظ إعدادات الكافيه", "Save Cafe Settings")}
         </button>
       </section>
 
       <section className="rounded-xl border bg-card p-4">
         <div className="mb-4">
-          <h3 className="text-lg font-bold">إدارة الفروع</h3>
+          <h3 className="text-lg font-bold">
+            {tr("إدارة الفروع", "Branch Management")}
+          </h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            إضافة الفروع وتعديل بياناتها وإيقافها أو تفعيلها.
+            {tr(
+              "إضافة الفروع وتعديل بياناتها وإيقافها أو تفعيلها.",
+              "Add branches, edit their details, and activate or deactivate them.",
+            )}
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm font-medium">
-              اسم الفرع
+              {tr("اسم الفرع", "Branch Name")}
             </label>
             <input
               value={branchName}
               onChange={(e) => setBranchName(e.target.value)}
-              placeholder="اسم الفرع"
+              placeholder={tr("اسم الفرع", "Branch Name")}
               maxLength={120}
               className="w-full rounded-lg border bg-background p-3"
             />
@@ -424,12 +481,12 @@ function Settings({ tenantId }: { tenantId: string }) {
 
           <div>
             <label className="mb-2 block text-sm font-medium">
-              رقم الهاتف
+              {tr("رقم الهاتف", "Phone Number")}
             </label>
             <input
               value={branchPhone}
               onChange={(e) => setBranchPhone(e.target.value)}
-              placeholder="رقم التواصل"
+              placeholder={tr("رقم التواصل", "Contact Number")}
               maxLength={30}
               className="w-full rounded-lg border bg-background p-3"
             />
@@ -437,12 +494,12 @@ function Settings({ tenantId }: { tenantId: string }) {
 
           <div className="sm:col-span-2">
             <label className="mb-2 block text-sm font-medium">
-              العنوان
+              {tr("العنوان", "Address")}
             </label>
             <input
               value={branchAddress}
               onChange={(e) => setBranchAddress(e.target.value)}
-              placeholder="عنوان الفرع"
+              placeholder={tr("عنوان الفرع", "Branch Address")}
               maxLength={300}
               className="w-full rounded-lg border bg-background p-3"
             />
@@ -460,10 +517,10 @@ function Settings({ tenantId }: { tenantId: string }) {
             className="rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground disabled:opacity-50"
           >
             {saveBranch.isPending
-              ? "جارٍ الحفظ..."
+              ? tr("جارٍ الحفظ...", "Saving...")
               : editingBranchId
-                ? "حفظ تعديل الفرع"
-                : "إضافة فرع"}
+                ? tr("حفظ تعديل الفرع", "Save Branch Changes")
+                : tr("إضافة فرع", "Add Branch")}
           </button>
 
           {editingBranchId && (
@@ -472,7 +529,7 @@ function Settings({ tenantId }: { tenantId: string }) {
               onClick={resetBranchForm}
               className="rounded-lg border px-4 py-3"
             >
-              إلغاء التعديل
+              {tr("إلغاء التعديل", "Cancel Editing")}
             </button>
           )}
         </div>
@@ -480,7 +537,7 @@ function Settings({ tenantId }: { tenantId: string }) {
         <div className="mt-5 space-y-3">
           {branches.length === 0 ? (
             <p className="rounded-lg bg-muted/40 p-4 text-sm text-muted-foreground">
-              لا توجد فروع مسجلة.
+              {tr("لا توجد فروع مسجلة.", "No branches registered.")}
             </p>
           ) : (
             branches.map((branch) => (
@@ -494,7 +551,7 @@ function Settings({ tenantId }: { tenantId: string }) {
 
                     {branch.is_main && (
                       <span className="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800">
-                        الفرع الرئيسي
+                        {tr("الفرع الرئيسي", "Main Branch")}
                       </span>
                     )}
 
@@ -505,12 +562,14 @@ function Settings({ tenantId }: { tenantId: string }) {
                           : "bg-muted text-muted-foreground"
                       }`}
                     >
-                      {branch.is_active ? "نشط" : "متوقف"}
+                      {branch.is_active
+                        ? tr("نشط", "Active")
+                        : tr("متوقف", "Inactive")}
                     </span>
                   </div>
 
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {branch.phone || "لا يوجد هاتف"}
+                    {branch.phone || tr("لا يوجد هاتف", "No phone number")}
                   </p>
 
                   {branch.address && (
@@ -526,7 +585,7 @@ function Settings({ tenantId }: { tenantId: string }) {
                     onClick={() => startEditBranch(branch)}
                     className="rounded-lg border px-3 py-2 text-sm"
                   >
-                    تعديل
+                    {tr("تعديل", "Edit")}
                   </button>
 
                   {!branch.is_main && (
@@ -539,7 +598,9 @@ function Settings({ tenantId }: { tenantId: string }) {
                       }}
                       className="rounded-lg border px-3 py-2 text-sm disabled:opacity-50"
                     >
-                      {branch.is_active ? "إيقاف" : "تفعيل"}
+                      {branch.is_active
+                        ? tr("إيقاف", "Deactivate")
+                        : tr("تفعيل", "Activate")}
                     </button>
                   )}
                 </div>
@@ -550,55 +611,72 @@ function Settings({ tenantId }: { tenantId: string }) {
       </section>
 
       <section className="rounded-xl border bg-card p-4">
-        <h3 className="text-lg font-bold">الاشتراك الحالي</h3>
+        <h3 className="text-lg font-bold">
+          {tr("الاشتراك الحالي", "Current Subscription")}
+        </h3>
 
         {!subscription ? (
           <p className="mt-3 rounded-lg bg-muted/40 p-4 text-sm text-muted-foreground">
-            لا يوجد اشتراك مسجل لهذا الكافيه حاليًا.
+            {tr(
+              "لا يوجد اشتراك مسجل لهذا الكافيه حاليًا.",
+              "There is no subscription registered for this cafe.",
+            )}
           </p>
         ) : (
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="rounded-lg bg-muted/40 p-3">
-              <p className="text-xs text-muted-foreground">الباقة</p>
+              <p className="text-xs text-muted-foreground">
+                {tr("الباقة", "Plan")}
+              </p>
               <p className="mt-1 font-semibold">
-                {subscription.plan?.name_ar ?? "باقة غير محددة"}
+                {isAr
+                  ? subscription.plan?.name_ar ?? "باقة غير محددة"
+                  : subscription.plan?.name_en ?? subscription.plan?.name_ar ?? "Unknown Plan"}
               </p>
             </div>
 
             <div className="rounded-lg bg-muted/40 p-3">
-              <p className="text-xs text-muted-foreground">حالة الاشتراك</p>
+              <p className="text-xs text-muted-foreground">
+                {tr("حالة الاشتراك", "Subscription Status")}
+              </p>
               <p className="mt-1 font-semibold">
-                {statusLabel(subscription.status)}
+                {statusLabel(subscription.status, language)}
               </p>
             </div>
 
             <div className="rounded-lg bg-muted/40 p-3">
-              <p className="text-xs text-muted-foreground">السعر الشهري</p>
+              <p className="text-xs text-muted-foreground">
+                {tr("السعر الشهري", "Monthly Price")}
+              </p>
               <p className="mt-1 font-semibold">
-                {money(Number(subscription.plan?.price_monthly_egp ?? 0))}
+                {money(Number(subscription.plan?.price_monthly_egp ?? 0), language)}
               </p>
             </div>
 
             <div className="rounded-lg bg-muted/40 p-3">
-              <p className="text-xs text-muted-foreground">نهاية الفترة</p>
+              <p className="text-xs text-muted-foreground">
+                {tr("نهاية الفترة", "Period End")}
+              </p>
               <p className="mt-1 font-semibold">
                 {subscription.current_period_end
                   ? new Date(subscription.current_period_end).toLocaleDateString(
-                      "ar-EG",
+                      isAr ? "ar-EG" : "en-US",
                     )
                   : subscription.trial_ends_at
                     ? new Date(subscription.trial_ends_at).toLocaleDateString(
-                        "ar-EG",
+                        isAr ? "ar-EG" : "en-US",
                       )
-                    : "غير محدد"}
+                    : tr("غير محدد", "Not specified")}
               </p>
             </div>
           </div>
         )}
 
         <p className="mt-4 text-xs text-muted-foreground">
-          بيانات الاشتراك للعرض فقط. تغيير الباقة أو الدفع يحتاج إلى إجراء
-          آمن من نظام الاشتراكات.
+          {tr(
+            "بيانات الاشتراك للعرض فقط. تغيير الباقة أو الدفع يحتاج إلى إجراء آمن من نظام الاشتراكات.",
+            "Subscription details are view-only. Plan changes and payments must be handled securely by the subscription system.",
+          )}
         </p>
       </section>
     </div>
