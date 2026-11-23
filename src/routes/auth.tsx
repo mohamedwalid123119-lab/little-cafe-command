@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Coffee, Loader2 } from "lucide-react";
@@ -6,195 +7,182 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
 import { friendlyError } from "@/lib/errors";
 
-type AuthSearch = { mode?: "signin" | "signup" | "forgot" | undefined; redirect?: string | undefined };
+type AuthSearch = {
+  redirect?: string;
+};
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>): AuthSearch => ({
-    mode: s["mode"] === "signup" || s["mode"] === "forgot" ? s["mode"] : undefined,
     redirect: safeRedirect(s["redirect"]),
   }),
   head: () => ({
     meta: [
       { title: "تسجيل الدخول — CAFE OS" },
-      { name: "description", content: "سجّل الدخول أو أنشئ حساباً جديداً في CAFE OS لإدارة الكافيه." },
-      { property: "og:title", content: "تسجيل الدخول — CAFE OS" },
-      { property: "og:description", content: "سجّل الدخول أو أنشئ حساباً جديداً في CAFE OS." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      {
+        name: "description",
+        content: "تسجيل الدخول إلى نظام إدارة الكافيهات",
+      },
     ],
   }),
   component: AuthPage,
 });
 
-function safeRedirect(v: unknown): string | undefined {
-  return typeof v === "string" && v.startsWith("/") && !v.startsWith("//") ? v : undefined;
+function safeRedirect(value: unknown): string | undefined {
+  return typeof value === "string" &&
+    value.startsWith("/") &&
+    !value.startsWith("//")
+    ? value
+    : undefined;
 }
 
 function AuthPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<string>(search.mode ?? "signin");
+
   const [busy, setBusy] = useState(false);
-  const [sentConfirm, setSentConfirm] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   const target = search.redirect ?? "/app";
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user) navigate({ to: target, replace: true });
+      if (data.user) {
+        navigate({ to: target, replace: true });
+      }
     });
-    const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) navigate({ to: target, replace: true });
-    });
+
+    const { data } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === "SIGNED_IN" && session) {
+          navigate({ to: target, replace: true });
+        }
+      }
+    );
+
     return () => data.subscription.unsubscribe();
   }, [navigate, target]);
 
-  async function signIn(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
+  async function signInWithGoogle() {
     setBusy(true);
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin + target,
+      },
+    });
+
+    if (error) {
+      setBusy(false);
+      toast.error(friendlyError(error));
+    }
+  }
+
+  async function signInWithEmail(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setBusy(true);
+
     const { error } = await supabase.auth.signInWithPassword({
-      email: String(f.get("email")).trim(),
-      password: String(f.get("password")),
-    });
-    setBusy(false);
-    if (error) toast.error(friendlyError(error));
-  }
-
-  async function signUp(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    const password = String(f.get("password"));
-    if (password.length < 8) {
-      toast.error("كلمة المرور يجب أن تكون 8 أحرف على الأقل");
-      return;
-    }
-    const email = String(f.get("email")).trim();
-    setBusy(true);
-    const { data, error } = await supabase.auth.signUp({
-      email,
+      email: email.trim(),
       password,
-      options: { emailRedirectTo: window.location.origin + "/app", data: { full_name: String(f.get("full_name")).trim() } },
     });
+
     setBusy(false);
+
     if (error) {
       toast.error(friendlyError(error));
-      return;
     }
-    if (!data.session) setSentConfirm(email);
-  }
-
-  async function forgot(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    setBusy(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(String(f.get("email")).trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    setBusy(false);
-    if (error) {
-      toast.error(friendlyError(error));
-      return;
-    }
-    toast.success("أرسلنا رابط إعادة تعيين كلمة المرور إلى بريدك");
-  }
-
-  async function oauth(provider: "google" | "lovable") {
-    setBusy(true);
-    const res = await lovable.auth.signInWithOAuth(provider, { redirect_uri: window.location.origin + "/auth" });
-    setBusy(false);
-    if (res && "error" in res && res.error) toast.error(friendlyError(res.error));
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
+    <main
+      dir="rtl"
+      className="flex min-h-screen items-center justify-center bg-[#080808] px-4 py-10 text-white"
+    >
       <div className="w-full max-w-md">
-        <Link to="/" className="mb-6 flex items-center justify-center gap-2 font-display text-2xl font-bold text-primary">
-          <Coffee className="size-7" /> CAFE OS
+        <Link
+          to="/"
+          className="mb-8 flex items-center justify-center gap-3 text-3xl font-bold text-[#d6b45c]"
+        >
+          <Coffee className="size-9" />
+          CAFE OS
         </Link>
-        <div className="rounded-xl border bg-card p-6 shadow-sm">
-          {sentConfirm ? (
-            <div className="space-y-3 text-center">
-              <h1 className="text-xl font-semibold">راجع بريدك الإلكتروني</h1>
-              <p className="text-sm text-muted-foreground">
-                أرسلنا رابط تأكيد إلى <span className="font-medium text-foreground">{sentConfirm}</span>. اضغط على الرابط لتفعيل حسابك ثم سجّل الدخول.
-              </p>
-              <Button variant="outline" onClick={() => { setSentConfirm(null); setTab("signin"); }}>
-                رجوع لتسجيل الدخول
-              </Button>
+
+        <div className="rounded-2xl border border-[#6d5525] bg-[#111111] p-7 shadow-2xl">
+          <div className="mb-7 text-center">
+            <h1 className="text-2xl font-bold text-[#d6b45c]">
+              تسجيل الدخول
+            </h1>
+            <p className="mt-2 text-sm text-gray-400">
+              نظام إدارة الكافيهات
+            </p>
+          </div>
+
+          <Button
+            type="button"
+            disabled={busy}
+            onClick={signInWithGoogle}
+            className="h-12 w-full bg-[#d6b45c] font-bold text-black hover:bg-[#bd9b43]"
+          >
+            {busy ? (
+              <Loader2 className="ml-2 size-4 animate-spin" />
+            ) : null}
+            المتابعة باستخدام Google
+          </Button>
+
+          <div className="my-6 flex items-center gap-3 text-xs text-gray-500">
+            <div className="h-px flex-1 bg-gray-700" />
+            أو تسجيل الدخول بالبريد الإلكتروني
+            <div className="h-px flex-1 bg-gray-700" />
+          </div>
+
+          <form onSubmit={signInWithEmail} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">البريد الإلكتروني</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                className="border-gray-700 bg-[#080808] text-white"
+                dir="ltr"
+              />
             </div>
-          ) : (
-            <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">تسجيل الدخول</TabsTrigger>
-                <TabsTrigger value="signup">حساب جديد</TabsTrigger>
-              </TabsList>
 
-              <div className="mt-5 grid gap-2">
-                <Button variant="outline" disabled={busy} onClick={() => oauth("google")}>
-                  المتابعة باستخدام Google
-                </Button>
-                <Button variant="outline" disabled={busy} onClick={() => oauth("lovable")}>
-                  المتابعة باستخدام Lovable
-                </Button>
-              </div>
-              <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
-                <div className="h-px flex-1 bg-border" /> أو بالبريد الإلكتروني <div className="h-px flex-1 bg-border" />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">كلمة المرور</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                className="border-gray-700 bg-[#080808] text-white"
+                dir="ltr"
+              />
+            </div>
 
-              <TabsContent value="signin">
-                <form onSubmit={signIn} className="space-y-4">
-                  <Field label="البريد الإلكتروني" name="email" type="email" autoComplete="email" />
-                  <Field label="كلمة المرور" name="password" type="password" autoComplete="current-password" />
-                  <Button type="submit" className="w-full" disabled={busy}>
-                    {busy && <Loader2 className="size-4 animate-spin" />} دخول
-                  </Button>
-                  <button type="button" className="w-full text-sm text-primary hover:underline" onClick={() => setTab("forgot")}>
-                    نسيت كلمة المرور؟
-                  </button>
-                </form>
-              </TabsContent>
+            <Button
+              type="submit"
+              disabled={busy}
+              className="h-11 w-full border border-[#6d5525] bg-transparent text-[#d6b45c] hover:bg-[#242018]"
+            >
+              دخول
+            </Button>
+          </form>
 
-              <TabsContent value="signup">
-                <form onSubmit={signUp} className="space-y-4">
-                  <Field label="الاسم" name="full_name" autoComplete="name" />
-                  <Field label="البريد الإلكتروني" name="email" type="email" autoComplete="email" />
-                  <Field label="كلمة المرور (8 أحرف على الأقل)" name="password" type="password" autoComplete="new-password" minLength={8} />
-                  <Button type="submit" className="w-full" disabled={busy}>
-                    {busy && <Loader2 className="size-4 animate-spin" />} إنشاء حساب
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="forgot">
-                <form onSubmit={forgot} className="space-y-4">
-                  <p className="text-sm text-muted-foreground">اكتب بريدك وسنرسل لك رابطاً لتعيين كلمة مرور جديدة.</p>
-                  <Field label="البريد الإلكتروني" name="email" type="email" autoComplete="email" />
-                  <Button type="submit" className="w-full" disabled={busy}>
-                    إرسال الرابط
-                  </Button>
-                  <button type="button" className="w-full text-sm text-primary hover:underline" onClick={() => setTab("signin")}>
-                    رجوع لتسجيل الدخول
-                  </button>
-                </form>
-              </TabsContent>
-            </Tabs>
-          )}
+          <p className="mt-6 text-center text-xs text-gray-500">
+            CAFE OS — نظام إدارة الكافيهات
+          </p>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Field({ label, name, ...props }: { label: string; name: string } & React.ComponentProps<typeof Input>) {
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={name}>{label}</Label>
-      <Input id={name} name={name} required dir="auto" {...props} />
-    </div>
+    </main>
   );
 }
