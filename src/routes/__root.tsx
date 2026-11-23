@@ -1,3 +1,4 @@
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -9,9 +10,9 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
-import { DirectionProvider } from "@radix-ui/react-direction";
 
 import { Toaster } from "@/components/ui/sonner";
+import { AppPreferencesProvider } from "@/components/app-preferences";
 import { supabase } from "@/integrations/supabase/client";
 
 import appCss from "../styles.css?url";
@@ -22,7 +23,9 @@ function NotFoundComponent() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">الصفحة غير موجودة</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">
+          الصفحة غير موجودة
+        </h2>
         <p className="mt-2 text-sm text-muted-foreground">
           الصفحة التي تبحث عنها غير موجودة أو تم نقلها.
         </p>
@@ -42,8 +45,11 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
+
   useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    reportLovableError(error, {
+      boundary: "tanstack_root_error_component",
+    });
   }, [error]);
 
   return (
@@ -77,28 +83,37 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   );
 }
 
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+export const Route = createRootRouteWithContext<{
+  queryClient: QueryClient;
+}>()({
   head: () => ({
-    // Each content route, / included, sets its own head(). Never add og:image or
-    // twitter:image here: every page without its own would inherit the root's preview image.
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "CAFE OS — نظام إدارة الكافيهات" },
-      { name: "description", content: "نظام سحابي لإدارة الكافيهات: الريسبيات، التكلفة، المنتجات والأرباح." },
+      {
+        name: "description",
+        content:
+          "نظام سحابي لإدارة الكافيهات: الريسبيات، التكلفة، المنتجات والأرباح.",
+      },
       { property: "og:title", content: "CAFE OS — نظام إدارة الكافيهات" },
-      { property: "og:description", content: "نظام سحابي لإدارة الكافيهات: الريسبيات، التكلفة، المنتجات والأرباح." },
+      {
+        property: "og:description",
+        content:
+          "نظام سحابي لإدارة الكافيهات: الريسبيات، التكلفة، المنتجات والأرباح.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      {
+        rel: "preconnect",
+        href: "https://fonts.gstatic.com",
+        crossOrigin: "anonymous",
+      },
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Readex+Pro:wght@500;600;700&display=swap",
@@ -131,20 +146,30 @@ function RootComponent() {
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event) => {
-      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+      if (
+        event !== "SIGNED_IN" &&
+        event !== "SIGNED_OUT" &&
+        event !== "USER_UPDATED"
+      ) {
+        return;
+      }
+
       router.invalidate();
-      if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+
+      if (event !== "SIGNED_OUT") {
+        queryClient.invalidateQueries();
+      }
     });
+
     return () => data.subscription.unsubscribe();
   }, [router, queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <DirectionProvider dir="rtl">
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      <AppPreferencesProvider>
         <Outlet />
-        <Toaster position="top-center" richColors dir="rtl" />
-      </DirectionProvider>
+        <Toaster position="top-center" richColors />
+      </AppPreferencesProvider>
     </QueryClientProvider>
   );
 }
