@@ -13,10 +13,14 @@ import {
   Loader2,
   Menu,
   Package,
+  Printer,
+  QrCode,
+  ScanLine,
   ShieldCheck,
   ShoppingBag,
   Smartphone,
   TrendingUp,
+  UtensilsCrossed,
   Users,
   Wallet,
   X,
@@ -48,7 +52,8 @@ export const Route = createFileRoute("/auth")({
       { title: "Little Cafe Command | إدارة كافيهك بذكاء" },
       {
         name: "description",
-        content: "نظام متكامل لإدارة المبيعات والمخازن والموظفين والتكاليف والتقارير.",
+        content:
+          "نظام متكامل لإدارة الكافيهات: المبيعات والمخازن والموظفين والتكاليف والمنيو الرقمي والطلبات.",
       },
     ],
   }),
@@ -114,6 +119,14 @@ const faqs = [
   {
     q: "هل يمكن استخدام النظام من الهاتف؟",
     a: "واجهة النظام تتكيف مع أحجام الشاشات المختلفة.",
+  },
+  {
+    q: "هل يمكن للعميل الطلب بنفسه من الترابيزة؟",
+    a: "الفكرة أن يمسح العميل QR Code الخاص بترابيزة جلوسه، ويتصفح المنيو ويرسل طلبه مباشرة دون الحاجة إلى تحميل تطبيق.",
+  },
+  {
+    q: "هل يمكن تجهيز منيو للطباعة؟",
+    a: "يمكن تجهيز تصميم منيو بهوية الكافيه، إلى جانب نسخة رقمية مناسبة للموبايل.",
   },
   {
     q: "هل أستطيع متابعة المخزون والمبيعات معًا؟",
@@ -233,11 +246,17 @@ function AuthPage() {
   }
 
   return (
-    <main dir="rtl" className="min-h-screen overflow-hidden bg-background text-foreground">
+    <main
+      dir="rtl"
+      className="min-h-screen overflow-hidden bg-background text-foreground"
+    >
       {/* HEADER */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur-xl">
         <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-4 md:px-8">
-          <Link to="/auth" className="flex items-center gap-2 text-xl font-bold text-primary">
+          <Link
+            to="/auth"
+            className="flex items-center gap-2 text-xl font-bold text-primary"
+          >
             <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
               <Coffee className="size-6" />
             </span>
@@ -251,6 +270,7 @@ function AuthPage() {
 
           <nav className="hidden items-center gap-7 text-sm font-medium text-muted-foreground lg:flex">
             <a href="#features" className="hover:text-primary">المميزات</a>
+            <a href="#smart-menu" className="hover:text-primary">المنيو الذكي</a>
             <a href="#how" className="hover:text-primary">كيف يعمل؟</a>
             <a href="#benefits" className="hover:text-primary">الفوائد</a>
             <a href="#faq" className="hover:text-primary">الأسئلة الشائعة</a>
@@ -266,10 +286,12 @@ function AuthPage() {
             >
               تسجيل الدخول
             </Button>
-            <Button onClick={() => {
-              setIsRegister(true);
-              openRegistration();
-            }}>
+            <Button
+              onClick={() => {
+                setIsRegister(true);
+                openRegistration();
+              }}
+            >
               ابدأ الآن <ArrowLeft className="mr-2 size-4" />
             </Button>
           </div>
@@ -280,7 +302,11 @@ function AuthPage() {
             onClick={() => setMobileMenu(!mobileMenu)}
             className="rounded-lg border p-2 lg:hidden"
           >
-            {mobileMenu ? <X className="size-5" /> : <Menu className="size-5" />}
+            {mobileMenu ? (
+              <X className="size-5" />
+            ) : (
+              <Menu className="size-5" />
+            )}
           </button>
         </div>
 
@@ -288,6 +314,7 @@ function AuthPage() {
           <div className="border-t bg-background px-5 py-5 lg:hidden">
             <nav className="flex flex-col gap-5 text-sm">
               <a href="#features" onClick={() => setMobileMenu(false)}>المميزات</a>
+              <a href="#smart-menu" onClick={() => setMobileMenu(false)}>المنيو الذكي</a>
               <a href="#how" onClick={() => setMobileMenu(false)}>كيف يعمل؟</a>
               <a href="#benefits" onClick={() => setMobileMenu(false)}>الفوائد</a>
               <a href="#faq" onClick={() => setMobileMenu(false)}>الأسئلة الشائعة</a>
@@ -325,7 +352,9 @@ function AuthPage() {
               <Coffee className="size-5" />
             </span>
             <span className="min-w-0">
-              <span className="block truncate text-sm font-bold">Little Cafe Command</span>
+              <span className="block truncate text-sm font-bold">
+                Little Cafe Command
+              </span>
               <span className="block truncate text-xs text-muted-foreground">
                 سجّل وابدأ إدارة كافيهك
               </span>
@@ -337,8 +366,11 @@ function AuthPage() {
         </button>
       </div>
 
-      {/* REGISTRATION - LANDING PAGE START */}
-      <section id="account" className="scroll-mt-24 border-b bg-[#10110f] px-4 py-10 text-white md:py-14">
+      {/* REGISTRATION */}
+      <section
+        id="account"
+        className="scroll-mt-24 border-b bg-[#10110f] px-4 py-10 text-white md:py-14"
+      >
         <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[1fr_440px]">
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-[#d6b45c]/30 bg-[#d6b45c]/10 px-4 py-2 text-xs font-semibold text-[#d6b45c]">
@@ -380,7 +412,9 @@ function AuthPage() {
                 {isRegister ? "إنشاء حساب كافيه جديد" : "أهلاً بك مجدداً"}
               </h2>
               <p className="mt-2 text-sm text-gray-400">
-                {isRegister ? "أنشئ حسابك وابدأ إدارة الكافيه" : "سجل دخولك للمتابعة"}
+                {isRegister
+                  ? "أنشئ حسابك وابدأ إدارة الكافيه"
+                  : "سجل دخولك للمتابعة"}
               </p>
             </div>
 
@@ -568,6 +602,362 @@ function AuthPage() {
         </div>
       </section>
 
+      {/* SMART MENU AND QR ORDERING */}
+      <section
+        id="smart-menu"
+        className="relative scroll-mt-24 overflow-hidden border-y bg-[#10120f] py-20 text-white md:py-28"
+      >
+        <div className="pointer-events-none absolute -right-40 top-20 size-96 rounded-full bg-[#c6a15b]/10 blur-[100px]" />
+        <div className="pointer-events-none absolute -left-40 bottom-0 size-96 rounded-full bg-emerald-500/5 blur-[100px]" />
+
+        <div className="relative mx-auto max-w-7xl px-4 md:px-8">
+          <div className="mx-auto mb-16 max-w-3xl text-center">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#c6a15b]/30 bg-[#c6a15b]/10 px-4 py-2 text-xs font-bold text-[#d9b86d]">
+              <QrCode className="size-4" />
+              SMART MENU & QR ORDERING
+            </span>
+
+            <h2 className="mt-6 text-3xl font-bold leading-relaxed md:text-5xl">
+              منيو كافيهك...
+              <span className="block text-[#d9b86d]">
+                مطبوع ورقمي وتفاعلي
+              </span>
+            </h2>
+
+            <p className="mt-5 text-sm leading-8 text-gray-400 md:text-base">
+              من تصميم المنيو بهوية كافيهك، إلى تجربة طلب ذكية من الترابيزة.
+              خلي عميلك يشوف اختياراته ويطلب بسهولة، وخلي كل طلب يوصل للمكان الصحيح.
+            </p>
+          </div>
+
+          {/* PRINTED AND DIGITAL MENU */}
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+            <div>
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex size-11 items-center justify-center rounded-xl bg-[#c6a15b]/10 text-[#d9b86d]">
+                  <Printer className="size-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-[#d9b86d]">MENU DESIGN</p>
+                  <h3 className="mt-1 text-2xl font-bold">منيو يليق بهوية كافيهك</h3>
+                </div>
+              </div>
+
+              <p className="leading-8 text-gray-400">
+                مش مجرد قائمة أسعار. صمم منيو يعكس شخصية المكان، وينظم
+                الأصناف والتصنيفات والإضافات بطريقة واضحة وجذابة.
+              </p>
+
+              <div className="mt-7 space-y-4">
+                {[
+                  "تصميم احترافي يحمل اسم وهوية الكافيه.",
+                  "تقسيم الأصناف إلى فئات منظمة وواضحة.",
+                  "عرض الأسعار والوصف والإضافات المتاحة.",
+                  "نسخة جاهزة للطباعة والاستخدام داخل المكان.",
+                  "نسخة رقمية مناسبة لشاشات الموبايل.",
+                  "تحديث المنتجات والأسعار بدل إعادة تصميم المنيو من البداية.",
+                ].map((item) => (
+                  <div key={item} className="flex items-start gap-3 text-sm leading-7 text-gray-300">
+                    <Check className="mt-1 size-4 shrink-0 text-[#d9b86d]" />
+                    {item}
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                onClick={openRegistration}
+                className="mt-8 h-12 gap-2 bg-[#c6a15b] px-6 font-bold text-black hover:bg-[#d9b86d]"
+              >
+                اكتشف إمكانيات النظام <ArrowLeft className="size-4" />
+              </Button>
+            </div>
+
+            {/* MENU MOCKUP */}
+            <div className="relative">
+              <div className="absolute -inset-5 rounded-[40px] bg-[#c6a15b]/10 blur-3xl" />
+
+              <div className="relative mx-auto max-w-md rounded-2xl border border-[#c6a15b]/30 bg-[#1a1d19] p-4 shadow-2xl sm:p-7">
+                <div className="rounded-xl border border-[#c6a15b]/30 bg-[#f4eee2] p-5 text-[#28251e] sm:p-7">
+                  <div className="text-center">
+                    <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-[#9b7941] text-[#9b7941]">
+                      <Coffee className="size-6" />
+                    </div>
+                    <p className="mt-3 text-[10px] font-semibold tracking-[4px] text-[#9b7941]">
+                      YOUR CAFE BRAND
+                    </p>
+                    <h4 className="mt-2 text-2xl font-black tracking-wide">
+                      OUR MENU
+                    </h4>
+                    <div className="mx-auto mt-3 h-px w-20 bg-[#9b7941]" />
+                    <p className="mt-3 text-xs text-[#81745e]">
+                      COFFEE • DRINKS • MORE
+                    </p>
+                  </div>
+
+                  <div className="mt-7 space-y-5">
+                    <div>
+                      <h5 className="mb-3 border-b border-[#c9b99c] pb-2 text-sm font-black text-[#9b7941]">
+                        HOT COFFEE
+                      </h5>
+                      {[
+                        ["Espresso", "65"],
+                        ["Cappuccino", "95"],
+                        ["Spanish Latte", "110"],
+                      ].map(([name, price]) => (
+                        <div key={name} className="mb-3 flex items-center justify-between text-sm">
+                          <span className="font-semibold">{name}</span>
+                          <span className="font-bold">{price} EGP</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div>
+                      <h5 className="mb-3 border-b border-[#c9b99c] pb-2 text-sm font-black text-[#9b7941]">
+                        COLD DRINKS
+                      </h5>
+                      {[
+                        ["Iced Latte", "90"],
+                        ["Iced Spanish", "115"],
+                      ].map(([name, price]) => (
+                        <div key={name} className="mb-3 flex items-center justify-between text-sm">
+                          <span className="font-semibold">{name}</span>
+                          <span className="font-bold">{price} EGP</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-7 border-t border-[#c9b99c] pt-4 text-center">
+                    <p className="text-[10px] tracking-[2px] text-[#81745e]">
+                      MADE FOR YOUR CAFE
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center gap-2">
+                    <Printer className="size-4 text-[#d9b86d]" />
+                    <span className="text-xs font-semibold text-gray-300">نسخة للطباعة</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="size-4 text-[#d9b86d]" />
+                    <span className="text-xs font-semibold text-gray-300">نسخة رقمية</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* QR SELF ORDERING */}
+          <div className="mt-24 grid items-center gap-12 border-t border-white/10 pt-20 lg:grid-cols-2">
+            <div className="order-2 lg:order-1">
+              <div className="mx-auto max-w-sm rounded-[32px] border border-white/10 bg-[#1b1e1a] p-4 shadow-2xl">
+                <div className="rounded-[24px] bg-[#f7f6f1] p-4 text-[#242720]">
+                  <div className="flex items-center justify-between border-b border-gray-200 pb-4">
+                    <div>
+                      <p className="text-[10px] font-bold tracking-widest text-[#9b7941]">
+                        LITTLE CAFE
+                      </p>
+                      <p className="mt-1 text-lg font-black">القائمة</p>
+                    </div>
+                    <div className="rounded-xl bg-[#ece8dd] p-3 text-[#9b7941]">
+                      <Coffee className="size-6" />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-xl bg-[#ece8dd] p-3">
+                    <p className="text-xs font-bold text-[#81745e]">
+                      ترابيزة رقم 08
+                    </p>
+                    <p className="mt-1 text-sm font-bold">
+                      أهلاً بك! اختار طلبك براحتك
+                    </p>
+                  </div>
+
+                  <div className="mt-5 flex gap-2 overflow-hidden">
+                    {["الكل", "قهوة", "بارد", "حلويات"].map((item, index) => (
+                      <span
+                        key={item}
+                        className={`shrink-0 rounded-full px-3 py-2 text-[10px] font-bold ${
+                          index === 0
+                            ? "bg-[#252b23] text-white"
+                            : "bg-[#eceee8] text-gray-600"
+                        }`}
+                      >
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="mt-5 space-y-3">
+                    {[
+                      { name: "Spanish Latte", detail: "اختيارك المفضل", price: "115", icon: "☕" },
+                      { name: "Iced Mocha", detail: "قهوة باردة", price: "105", icon: "🧋" },
+                      { name: "Cappuccino", detail: "قهوة ساخنة", price: "95", icon: "☕" },
+                    ].map((item) => (
+                      <div key={item.name} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3">
+                        <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-[#f1eee6] text-2xl">
+                          {item.icon}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-black">{item.name}</p>
+                          <p className="mt-1 text-[10px] text-gray-500">{item.detail}</p>
+                          <p className="mt-1 text-xs font-bold text-[#9b7941]">{item.price} EGP</p>
+                        </div>
+                        <span className="flex size-8 items-center justify-center rounded-lg bg-[#252b23] text-lg text-white">
+                          +
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-5 flex items-center justify-between rounded-xl bg-[#252b23] p-4 text-white">
+                    <div>
+                      <p className="text-[10px] text-gray-300">طلبك جاهز للإرسال</p>
+                      <p className="mt-1 text-sm font-bold">عرض السلة</p>
+                    </div>
+                    <ArrowLeft className="size-5" />
+                  </div>
+                </div>
+              </div>
+              <p className="mt-4 text-center text-xs text-gray-500">
+                نموذج توضيحي لشكل تجربة الطلب على الهاتف
+              </p>
+            </div>
+
+            <div className="order-1 lg:order-2">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex size-11 items-center justify-center rounded-xl bg-[#c6a15b]/10 text-[#d9b86d]">
+                  <QrCode className="size-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-[#d9b86d]">SCAN • ORDER • SERVE</p>
+                  <h3 className="mt-1 text-2xl font-bold">
+                    خلي الترابيزة تستقبل الطلب بنفسها
+                  </h3>
+                </div>
+              </div>
+
+              <p className="leading-8 text-gray-400">
+                كل ترابيزة لها QR Code خاص بها. العميل يمسح الكود بكاميرا
+                موبايله، يفتح المنيو مباشرة، يختار الأصناف والإضافات والكميات،
+                ثم يرسل الطلب دون تحميل أي تطبيق.
+              </p>
+
+              <div className="mt-7 grid gap-4 sm:grid-cols-2">
+                {[
+                  {
+                    icon: QrCode,
+                    title: "كود مستقل لكل ترابيزة",
+                    body: "تعرف الطلب جاي من أنهي ترابيزة.",
+                  },
+                  {
+                    icon: Smartphone,
+                    title: "بدون تحميل تطبيق",
+                    body: "المنيو يفتح مباشرة من متصفح الموبايل.",
+                  },
+                  {
+                    icon: UtensilsCrossed,
+                    title: "اختيارات وإضافات",
+                    body: "العميل يحدد الصنف والكمية والإضافات.",
+                  },
+                  {
+                    icon: ScanLine,
+                    title: "إرسال مباشر للطلب",
+                    body: "الطلب ينتقل للنظام لمتابعته وتجهيزه.",
+                  },
+                ].map((item) => (
+                  <div key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <item.icon className="size-6 text-[#d9b86d]" />
+                    <h4 className="mt-3 font-bold">{item.title}</h4>
+                    <p className="mt-2 text-xs leading-6 text-gray-400">{item.body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* CUSTOMER JOURNEY */}
+          <div className="mt-24 border-t border-white/10 pt-16">
+            <div className="mx-auto mb-12 max-w-2xl text-center">
+              <span className="text-sm font-bold text-[#d9b86d]">
+                CUSTOMER JOURNEY
+              </span>
+              <h3 className="mt-4 text-3xl font-bold md:text-4xl">
+                أربع خطوات... والطلب وصل
+              </h3>
+              <p className="mt-4 leading-8 text-gray-400">
+                تجربة سهلة للعميل، وتنظيم أوضح لفريق العمل.
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                {
+                  number: "01",
+                  icon: QrCode,
+                  title: "امسح الكود",
+                  body: "العميل يمسح كود الترابيزة الموجودة أمامه.",
+                },
+                {
+                  number: "02",
+                  icon: Smartphone,
+                  title: "تصفح المنيو",
+                  body: "يشاهد الأصناف والأسعار والتفاصيل من موبايله.",
+                },
+                {
+                  number: "03",
+                  icon: ShoppingBag,
+                  title: "اختار طلبك",
+                  body: "يحدد المنتجات والكميات والإضافات المطلوبة.",
+                },
+                {
+                  number: "04",
+                  icon: ChefHat,
+                  title: "أرسل واستقبل",
+                  body: "يصل الطلب للنظام مرتبطًا برقم الترابيزة.",
+                },
+              ].map((step) => (
+                <div
+                  key={step.number}
+                  className="relative rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-all hover:border-[#c6a15b]/40 hover:bg-white/[0.06]"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-3xl font-black text-[#c6a15b]/30">
+                      {step.number}
+                    </span>
+                    <step.icon className="size-7 text-[#d9b86d]" />
+                  </div>
+                  <h4 className="mt-6 text-lg font-bold">{step.title}</h4>
+                  <p className="mt-3 text-sm leading-7 text-gray-400">
+                    {step.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* QR VALUE PROPOSITION */}
+          <div className="mt-16 grid items-center gap-8 rounded-3xl border border-[#c6a15b]/20 bg-gradient-to-l from-[#c6a15b]/10 to-white/[0.02] p-6 md:grid-cols-[1fr_auto] md:p-10">
+            <div>
+              <h3 className="text-2xl font-bold md:text-3xl">
+                من أول ما العميل يقعد... لحد ما طلبه يوصل
+              </h3>
+              <p className="mt-3 max-w-2xl text-sm leading-8 text-gray-400">
+                تجربة طلب ذاتي تقلل خطوات تسجيل الطلب، وتربط كل طلب بترابيزته،
+                وتساعد فريق الكافيه على متابعة الطلبات بصورة منظمة.
+              </p>
+            </div>
+            <Button
+              onClick={openRegistration}
+              className="h-13 gap-2 bg-[#c6a15b] px-7 font-bold text-black hover:bg-[#d9b86d]"
+            >
+              ابدأ مع Little Cafe <ArrowLeft className="size-4" />
+            </Button>
+          </div>
+        </div>
+      </section>
+
       {/* BENEFITS */}
       <section id="benefits" className="scroll-mt-24 bg-muted/40 py-20 md:py-24">
         <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 md:grid-cols-2 md:px-8">
@@ -643,7 +1033,9 @@ function AuthPage() {
         <div className="mx-auto max-w-7xl px-4 md:px-8">
           <div className="mx-auto mb-14 max-w-xl text-center">
             <span className="text-sm font-bold text-primary">ابدأ بسهولة</span>
-            <h2 className="mt-4 text-3xl font-bold md:text-4xl">من التسجيل إلى التشغيل</h2>
+            <h2 className="mt-4 text-3xl font-bold md:text-4xl">
+              من التسجيل إلى التشغيل
+            </h2>
             <p className="mt-4 leading-8 text-muted-foreground">
               خطوات واضحة لتبدأ إدارة كافيهك.
             </p>
@@ -651,14 +1043,30 @@ function AuthPage() {
 
           <div className="grid gap-6 md:grid-cols-3">
             {[
-              { number: "01", title: "أنشئ حسابك", description: "سجل حسابك وابدأ إعداد مساحة العمل الخاصة بك." },
-              { number: "02", title: "جهز بيانات كافيهك", description: "أضف المنتجات والخامات والموظفين والبيانات الأساسية." },
-              { number: "03", title: "ابدأ التشغيل", description: "استخدم أدوات النظام لمتابعة وإدارة عمليات الكافيه." },
+              {
+                number: "01",
+                title: "أنشئ حسابك",
+                description: "سجل حسابك وابدأ إعداد مساحة العمل الخاصة بك.",
+              },
+              {
+                number: "02",
+                title: "جهز بيانات كافيهك",
+                description: "أضف المنتجات والخامات والموظفين والبيانات الأساسية.",
+              },
+              {
+                number: "03",
+                title: "ابدأ التشغيل",
+                description: "استخدم أدوات النظام لمتابعة وإدارة عمليات الكافيه.",
+              },
             ].map((step) => (
               <div key={step.number} className="rounded-2xl border bg-card p-7">
-                <span className="text-4xl font-bold text-primary/25">{step.number}</span>
+                <span className="text-4xl font-bold text-primary/25">
+                  {step.number}
+                </span>
                 <h3 className="mt-5 text-xl font-bold">{step.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-muted-foreground">{step.description}</p>
+                <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                  {step.description}
+                </p>
               </div>
             ))}
           </div>
@@ -753,7 +1161,11 @@ function AuthPage() {
           <p className="mx-auto mt-4 max-w-xl leading-8 text-muted-foreground">
             أنشئ حسابك واكتشف أدوات الإدارة المتاحة لك في Little Cafe Command.
           </p>
-          <Button size="lg" className="mt-8 h-14 gap-3 px-10 text-base" onClick={openRegistration}>
+          <Button
+            size="lg"
+            className="mt-8 h-14 gap-3 px-10 text-base"
+            onClick={openRegistration}
+          >
             أنشئ حساب كافيهك الآن <ArrowLeft className="size-5" />
           </Button>
         </div>
@@ -769,6 +1181,7 @@ function AuthPage() {
 
           <div className="flex flex-wrap justify-center gap-5 text-xs text-muted-foreground">
             <a href="#features" className="hover:text-primary">المميزات</a>
+            <a href="#smart-menu" className="hover:text-primary">المنيو الذكي</a>
             <a href="#how" className="hover:text-primary">طريقة العمل</a>
             <a href="#faq" className="hover:text-primary">الأسئلة الشائعة</a>
             <button
