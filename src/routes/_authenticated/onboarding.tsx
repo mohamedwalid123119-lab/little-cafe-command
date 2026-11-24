@@ -1,3 +1,4 @@
+
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Coffee, Loader2 } from "lucide-react";
@@ -7,16 +8,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { friendlyError } from "@/lib/errors";
-import { CURRENCIES, cafeSchema, type CafeInput } from "@/lib/onboarding";
+import { cafeSchema, type CafeInput } from "@/lib/onboarding";
 import { q } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
@@ -35,15 +29,8 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
       { title: "أنشئ الكافيه الخاص بك — CAFE OS" },
       {
         name: "description",
-        content: "سجّل بيانات الكافيه الخاص بك لتبدأ استخدام CAFE OS.",
+        content: "أنشئ مساحة العمل الخاصة بك وابدأ إدارة الكافيه.",
       },
-      { property: "og:title", content: "أنشئ الكافيه الخاص بك — CAFE OS" },
-      {
-        property: "og:description",
-        content: "سجّل بيانات الكافيه الخاص بك لتبدأ استخدام CAFE OS.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
     ],
   }),
 
@@ -57,7 +44,6 @@ function Onboarding() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const [currency, setCurrency] = useState<string>("EGP");
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
 
@@ -69,8 +55,7 @@ function Onboarding() {
     const parsed = cafeSchema.safeParse({
       name: String(f.get("name") ?? ""),
       phone: String(f.get("phone") ?? ""),
-      address: String(f.get("address") ?? ""),
-      currency,
+      currency: "EGP",
     });
 
     if (!parsed.success) {
@@ -91,9 +76,8 @@ function Onboarding() {
 
     const { error } = await supabase.rpc("create_cafe", {
       _name: v.name,
-      _currency: v.currency,
-      ...(v.phone ? { _phone: v.phone } : {}),
-      ...(v.address ? { _address: v.address } : {}),
+      _currency: "EGP",
+      _phone: v.phone,
     });
 
     if (error) {
@@ -105,7 +89,6 @@ function Onboarding() {
     await queryClient.fetchQuery(q.myMemberships(user.id));
 
     toast.success("تم إنشاء الكافيه بنجاح");
-
     navigate({ to: "/app", replace: true });
   }
 
@@ -114,7 +97,7 @@ function Onboarding() {
       dir="rtl"
       className="flex min-h-screen items-center justify-center bg-background px-4 py-10"
     >
-      <div className="w-full max-w-lg">
+      <div className="w-full max-w-md">
         <div className="mb-6 flex items-center justify-center gap-2 font-display text-2xl font-bold text-primary">
           <Coffee className="size-7" />
           CAFE OS
@@ -122,59 +105,40 @@ function Onboarding() {
 
         <div className="rounded-xl border bg-card p-6 shadow-sm md:p-8">
           <h1 className="text-xl font-semibold text-foreground md:text-2xl">
-            أنشئ الكافيه الخاص بك
+            ابدأ بكافيهك
           </h1>
 
-          <p className="mt-1 text-sm text-muted-foreground">
-            اكتب بيانات الكافيه للبدء. ستكون أنت المالك، ويمكنك تعديل الاسم
-            والهاتف لاحقاً من الإعدادات.
+          <p className="mt-2 text-sm text-muted-foreground">
+            خطوتين فقط وتكون جاهز تبدأ إدارة الكافيه.
           </p>
 
-          <form
-            onSubmit={submit}
-            noValidate
-            className="mt-6 space-y-4"
-          >
-            <Field
-              label="اسم الكافيه"
-              name="name"
-              error={errors.name}
-              required
-            >
+          <form onSubmit={submit} noValidate className="mt-6 space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="name">
+                اسم الكافيه <span className="text-destructive">*</span>
+              </Label>
+
               <Input
                 id="name"
                 name="name"
                 dir="auto"
                 maxLength={120}
                 autoComplete="organization"
+                placeholder="مثال: Little Cafe"
                 aria-invalid={!!errors.name}
-                placeholder="اكتب اسم الكافيه"
               />
-            </Field>
 
-            <Field
-              label="العنوان"
-              name="address"
-              error={errors.address}
-              hint="اختياري — عنوان الفرع الرئيسي"
-            >
-              <Input
-                id="address"
-                name="address"
-                dir="auto"
-                maxLength={200}
-                autoComplete="street-address"
-                aria-invalid={!!errors.address}
-                placeholder="عنوان الكافيه"
-              />
-            </Field>
+              {errors.name && (
+                <p className="text-sm text-destructive">{errors.name}</p>
+              )}
+            </div>
 
-            <Field
-              label="رقم الهاتف"
-              name="phone"
-              error={errors.phone}
-              hint="اختياري"
-            >
+            <div className="space-y-2">
+              <Label htmlFor="phone">
+                رقم الهاتف أو واتساب{" "}
+                <span className="text-destructive">*</span>
+              </Label>
+
               <Input
                 id="phone"
                 name="phone"
@@ -186,31 +150,15 @@ function Onboarding() {
                 placeholder="01xxxxxxxxx"
                 aria-invalid={!!errors.phone}
               />
-            </Field>
 
-            <Field
-              label="العملة"
-              name="currency"
-              error={errors.currency}
-              hint="لا يمكن تغيير العملة بعد إنشاء الكافيه"
-            >
-              <Select
-                value={currency}
-                onValueChange={setCurrency}
-              >
-                <SelectTrigger id="currency" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
+              {errors.phone && (
+                <p className="text-sm text-destructive">{errors.phone}</p>
+              )}
 
-                <SelectContent>
-                  {CURRENCIES.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>
-                      {c.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+              <p className="text-xs text-muted-foreground">
+                استخدم رقمًا يمكننا التواصل معك من خلاله.
+              </p>
+            </div>
 
             <Button
               type="submit"
@@ -218,50 +166,12 @@ function Onboarding() {
               size="lg"
               disabled={busy}
             >
-              {busy && (
-                <Loader2 className="size-4 animate-spin" />
-              )}
-
+              {busy && <Loader2 className="size-4 animate-spin" />}
               {busy ? "جارٍ إنشاء الكافيه..." : "إنشاء الكافيه"}
             </Button>
           </form>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  name,
-  error,
-  hint,
-  required,
-  children,
-}: {
-  label: string;
-  name: string;
-  error?: string | undefined;
-  hint?: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={name}>
-        {label}
-        {required && (
-          <span className="text-destructive"> *</span>
-        )}
-      </Label>
-
-      {children}
-
-      {error ? (
-        <p className="text-sm text-destructive">{error}</p>
-      ) : hint ? (
-        <p className="text-xs text-muted-foreground">{hint}</p>
-      ) : null}
     </div>
   );
 }
