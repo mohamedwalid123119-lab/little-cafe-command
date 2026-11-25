@@ -31,7 +31,7 @@ function NotFoundComponent() {
         </p>
         <div className="mt-6">
           <Link
-            to="/"
+            to="/auth"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             الرئيسية
@@ -72,7 +72,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
             حاول مرة أخرى
           </button>
           <a
-            href="/"
+            href="/auth"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
             الرئيسية
