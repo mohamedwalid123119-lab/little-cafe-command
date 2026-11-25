@@ -79,6 +79,13 @@
       "when": 1795360004000,
       "tag": "0010_purchase_item_guard_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795360005000,
+      "tag": "0011_dashboard_fifo_profit_accuracy",
+      "breakpoints": true
     }
   ]
 }
