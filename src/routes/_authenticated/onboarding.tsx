@@ -50,46 +50,59 @@ function Onboarding() {
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const f = new FormData(e.currentTarget);
+    if (busy) return;
+
+    const form = new FormData(e.currentTarget);
 
     const parsed = cafeSchema.safeParse({
-      name: String(f.get("name") ?? ""),
-      phone: String(f.get("phone") ?? ""),
+      name: String(form.get("name") ?? ""),
+      phone: String(form.get("phone") ?? ""),
       currency: "EGP",
     });
 
     if (!parsed.success) {
-      const errs: Errors = {};
+      const validationErrors: Errors = {};
 
       for (const issue of parsed.error.issues) {
-        errs[issue.path[0] as keyof CafeInput] ??= issue.message;
+        validationErrors[issue.path[0] as keyof CafeInput] ??= issue.message;
       }
 
-      setErrors(errs);
+      setErrors(validationErrors);
       return;
     }
 
     setErrors({});
     setBusy(true);
 
-    const v = parsed.data;
+    try {
+      const values = parsed.data;
 
-    const { error } = await supabase.rpc("create_cafe", {
-      _name: v.name,
-      _currency: "EGP",
-      _phone: v.phone,
-    });
+      const { error } = await supabase.rpc("create_cafe", {
+        _name: values.name,
+        _currency: "EGP",
+        _phone: values.phone,
+      });
 
-    if (error) {
-      setBusy(false);
+      if (error) {
+        throw error;
+      }
+
+      await queryClient.invalidateQueries({
+        queryKey: ["my-memberships", user.id],
+      });
+
+      toast.success("تم إنشاء الكافيه بنجاح");
+
+      await navigate({
+        to: "/app",
+        replace: true,
+      });
+    } catch (error) {
+      console.error("[Onboarding] Cafe creation failed:", error);
       toast.error(friendlyError(error));
-      return;
+    } finally {
+      setBusy(false);
     }
-
-    await queryClient.fetchQuery(q.myMemberships(user.id));
-
-    toast.success("تم إنشاء الكافيه بنجاح");
-    navigate({ to: "/app", replace: true });
   }
 
   return (
@@ -126,6 +139,7 @@ function Onboarding() {
                 autoComplete="organization"
                 placeholder="مثال: Little Cafe"
                 aria-invalid={!!errors.name}
+                disabled={busy}
               />
 
               {errors.name && (
@@ -149,6 +163,7 @@ function Onboarding() {
                 inputMode="tel"
                 placeholder="01xxxxxxxxx"
                 aria-invalid={!!errors.phone}
+                disabled={busy}
               />
 
               {errors.phone && (
