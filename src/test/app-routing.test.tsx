@@ -7,15 +7,48 @@ import { NAV_ITEMS, activeNavItem } from "@/lib/nav";
 import { MODULES } from "@/lib/permissions";
 import { routeTree } from "@/routeTree.gen";
 
-// Match routes without running loaders or rendering.
 describe("App routing", () => {
   const router = createRouter({
     routeTree,
     context: { queryClient: new QueryClient() },
   });
 
-  it("uses the root route as a redirect to the auth page", () => {
-    expect(router.matchRoutes("/").at(-1)?.routeId).toBe("/");
+  it("registers the root route as the entry redirect", () => {
+    const rootRoute = router.routesById["/"];
+
+    expect(rootRoute).toBeDefined();
+    expect(rootRoute.options.beforeLoad).toBeTypeOf("function");
+  });
+
+  it("redirects the root route to /auth", () => {
+    const rootRoute = router.routesById["/"];
+    const beforeLoad = rootRoute.options.beforeLoad;
+
+    expect(beforeLoad).toBeTypeOf("function");
+
+    try {
+      beforeLoad?.({
+        params: {},
+        context: { queryClient: new QueryClient() },
+        location: router.buildLocation({ to: "/" }),
+        navigate: router.navigate,
+        cause: "enter",
+        abortController: new AbortController(),
+        preload: false,
+        matches: [],
+        routeId: "/",
+        search: {},
+      } as never);
+
+      throw new Error("Expected the root route to redirect");
+    } catch (error) {
+      expect(error).toMatchObject({
+        options: {
+          to: "/auth",
+          replace: true,
+        },
+      });
+    }
   });
 
   it("keeps the auth page available as the main entry page", () => {
@@ -33,7 +66,9 @@ describe("App routing", () => {
     (path, module) => {
       const leaf = router.matchRoutes(path).at(-1)?.routeId;
       const expected =
-        module === "dashboard" ? "/_authenticated/app/" : `/_authenticated${path}`;
+        module === "dashboard"
+          ? "/_authenticated/app/"
+          : `/_authenticated${path}`;
 
       expect(leaf).toBe(expected);
     },
