@@ -21,10 +21,11 @@ describe("App routing", () => {
   });
 
   it("redirects the root route to /auth", () => {
-    const rootRoute = router.routesById["/"];
-    const beforeLoad = rootRoute.options.beforeLoad;
+    const beforeLoad = router.routesById["/"].options.beforeLoad;
 
     expect(beforeLoad).toBeTypeOf("function");
+
+    let caughtError: unknown;
 
     try {
       beforeLoad?.({
@@ -39,16 +40,14 @@ describe("App routing", () => {
         routeId: "/",
         search: {},
       } as never);
-
-      throw new Error("Expected the root route to redirect");
     } catch (error) {
-      expect(error).toMatchObject({
-        options: {
-          to: "/auth",
-          replace: true,
-        },
-      });
+      caughtError = error;
     }
+
+    expect(caughtError).toMatchObject({
+      to: "/auth",
+      replace: true,
+    });
   });
 
   it("keeps the auth page available as the main entry page", () => {
