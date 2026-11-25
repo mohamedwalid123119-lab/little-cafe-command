@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -34,49 +35,75 @@ function ResetPassword() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    let active = true;
+
     const isRecovery = window.location.hash.includes("type=recovery");
 
     const { data } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") setReady(true);
+      if (event === "PASSWORD_RECOVERY" && active) {
+        setReady(true);
+      }
     });
 
-    supabase.auth.getSession().then(({ data: s }) => {
-      if (s.session && isRecovery) setReady(true);
-      else if (s.session) setReady(true);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: sessionData }) => {
+        if (active && sessionData.session) {
+          setReady(true);
+        } else if (active && !isRecovery) {
+          setReady(false);
+        }
+      })
+      .catch((error) => {
+        console.error("[ResetPassword] Session check failed:", error);
+      });
 
-    return () => data.subscription.unsubscribe();
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
   }, []);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const f = new FormData(e.currentTarget);
-    const password = String(f.get("password"));
+    if (busy) return;
+
+    const form = new FormData(e.currentTarget);
+    const password = String(form.get("password") ?? "");
+    const confirm = String(form.get("confirm") ?? "");
 
     if (password.length < 8) {
       toast.error("كلمة المرور يجب أن تكون 8 أحرف على الأقل");
       return;
     }
 
-    if (password !== String(f.get("confirm"))) {
+    if (password !== confirm) {
       toast.error("كلمتا المرور غير متطابقتين");
       return;
     }
 
     setBusy(true);
 
-    const { error } = await supabase.auth.updateUser({ password });
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
 
-    setBusy(false);
+      if (error) {
+        throw error;
+      }
 
-    if (error) {
+      toast.success("تم تغيير كلمة المرور");
+
+      await navigate({
+        to: "/app",
+        replace: true,
+      });
+    } catch (error) {
+      console.error("[ResetPassword] Password update failed:", error);
       toast.error(friendlyError(error));
-      return;
+    } finally {
+      setBusy(false);
     }
-
-    toast.success("تم تغيير كلمة المرور");
-    navigate({ to: "/app", replace: true });
   }
 
   return (
@@ -100,6 +127,7 @@ function ResetPassword() {
                 minLength={8}
                 required
                 autoComplete="new-password"
+                disabled={busy}
               />
             </div>
 
@@ -112,6 +140,7 @@ function ResetPassword() {
                 minLength={8}
                 required
                 autoComplete="new-password"
+                disabled={busy}
               />
             </div>
 
