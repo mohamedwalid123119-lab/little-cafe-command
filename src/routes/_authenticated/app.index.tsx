@@ -10,6 +10,7 @@ import { q } from "@/lib/queries";
 import {
   presetRange,
   pctChange,
+  PAYMENT_LABELS,
   type DashboardData,
   type RangePreset,
 } from "@/lib/dashboard";
@@ -126,15 +127,19 @@ function Dashboard({
   const currency = tenant.currency || "EGP";
 
   function money(value: number | null | undefined) {
+    if (value === null || value === undefined || !Number.isFinite(value)) {
+      return tr(isArabic, "غير متاح", "Unavailable");
+    }
+
     return new Intl.NumberFormat(isArabic ? "ar-EG" : "en-US", {
       style: "currency",
       currency,
       maximumFractionDigits: 0,
-    }).format(value || 0);
+    }).format(value);
   }
 
   function num(value: number | null | undefined) {
-    return (value || 0).toLocaleString(isArabic ? "ar-EG" : "en-US");
+    return (value ?? 0).toLocaleString(isArabic ? "ar-EG" : "en-US");
   }
 
   const currentSection = sections.find((item) => item.id === section)!;
@@ -230,8 +235,20 @@ function Dashboard({
           role="alert"
           className="rounded-xl border border-red-500/50 bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300"
         >
-          {tr(isArabic, "تعذر تحميل لوحة التحكم:", "Could not load dashboard:")}{" "}
-          {result.error.message}
+          <p>
+            {tr(isArabic, "تعذر تحميل لوحة التحكم:", "Could not load dashboard:")}{" "}
+            {result.error.message}
+          </p>
+          <button
+            type="button"
+            onClick={() => void result.refetch()}
+            disabled={result.isFetching}
+            className="mt-3 rounded-lg bg-red-700 px-4 py-2 font-semibold text-white disabled:opacity-50"
+          >
+            {result.isFetching
+              ? tr(isArabic, "جاري إعادة المحاولة...", "Retrying...")
+              : tr(isArabic, "إعادة المحاولة", "Try Again")}
+          </button>
         </div>
       )}
 
@@ -302,8 +319,8 @@ function Metric({
 
 type DashboardProps = {
   data: DashboardData;
-  money: (v: number) => string;
-  num: (v: number) => string;
+  money: (v: number | null | undefined) => string;
+  num: (v: number | null | undefined) => string;
   isArabic: boolean;
 };
 
@@ -389,7 +406,11 @@ function Sales({ data, money, num, isArabic }: DashboardProps) {
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title={tr(isArabic, "طرق الدفع", "Payment Methods")}>
           {data.payments.length ? data.payments.map((p) => (
-            <Info key={p.method} label={p.method} value={`${money(p.total)} · ${num(p.orders)} ${tr(isArabic, "طلب", "orders")}`} />
+            <Info
+              key={p.method}
+              label={PAYMENT_LABELS[p.method] || p.method}
+              value={`${money(p.total)} · ${num(p.orders)} ${tr(isArabic, "طلب", "orders")}`}
+            />
           )) : <Empty isArabic={isArabic} />}
         </Panel>
 
@@ -476,7 +497,7 @@ function Shifts({ data, money, num, isArabic }: DashboardProps) {
               <Info label={tr(isArabic, "المبيعات", "Sales")} value={money(shift.sales)} />
               <Info label={tr(isArabic, "مبيعات الكاش", "Cash Sales")} value={money(shift.cash_sales)} />
               <Info label={tr(isArabic, "رصيد الفتح", "Opening Balance")} value={money(shift.opening_balance)} />
-              <Info label={tr(isArabic, "رصيد الإغلاق المتوقع", "Expected Closing Balance")} value={money(shift.expected_balance || 0)} />
+              <Info label={tr(isArabic, "رصيد الإغلاق المتوقع", "Expected Closing Balance")} value={money(shift.expected_balance)} />
               <Info label={tr(isArabic, "عدد الطلبات", "Number of Orders")} value={num(shift.orders)} />
               {shift.variance !== null && (
                 <Info label={tr(isArabic, "فرق الخزنة", "Cash Variance")} value={money(shift.variance)} />
@@ -493,6 +514,13 @@ function Products({ data, money, num, isArabic }: DashboardProps) {
   return (
     <div className="space-y-5">
       <Panel title={tr(isArabic, "المنتجات الأكثر مبيعًا", "Top Selling Products")}>
+        <p className="mb-4 text-xs text-amber-700 dark:text-amber-400">
+          {tr(
+            isArabic,
+            "الأرباح المعروضة هنا تقديرية حسب تكلفة الوصفة، وليست صافي ربح FIFO المعتمد.",
+            "Profits shown here are estimates based on recipe costs, not verified FIFO net profit.",
+          )}
+        </p>
         {data.top_products.length ? data.top_products.map((item, index) => (
           <div key={item.name} className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-[#b99a45]/20 p-3">
             <div className="flex items-center gap-3">
@@ -512,7 +540,7 @@ function Products({ data, money, num, isArabic }: DashboardProps) {
             <div className="text-left">
               <b>{money(item.revenue)}</b>
               <p className="text-xs text-gray-500">
-                {tr(isArabic, "الربح:", "Profit:")} {money(item.profit)}
+                {tr(isArabic, "ربح تقديري:", "Estimated profit:")} {money(item.profit)}
               </p>
             </div>
           </div>
@@ -524,15 +552,43 @@ function Products({ data, money, num, isArabic }: DashboardProps) {
 
 function Alerts({ data, money, num, isArabic }: DashboardProps) {
   const openShifts = data.shifts.filter((s) => s.status === "open");
-  const uncosted = data.top_products.filter((p) => p.uncosted);
+  const uncostedCount = data.current.uncosted_items ?? 0;
+  const incompleteMovements = data.current.incomplete_fifo_movements;
+  const uncoveredOrders = data.current.uncovered_orders;
 
   return (
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <Metric title={tr(isArabic, "تنبيهات المخزون", "Inventory Alerts")} value={num(data.stock.alerts.length)} />
         <Metric title={tr(isArabic, "ورديات مفتوحة", "Open Shifts")} value={num(openShifts.length)} />
-        <Metric title={tr(isArabic, "منتجات تكلفتها غير مسجلة", "Products Without Recorded Cost")} value={num(uncosted.length)} />
+        <Metric title={tr(isArabic, "منتجات تكلفتها غير مسجلة", "Products Without Recorded Cost")} value={num(uncostedCount)} />
       </div>
+
+      {(incompleteMovements !== undefined || uncoveredOrders !== undefined) && (
+        <Panel title={tr(isArabic, "سلامة بيانات التكلفة", "Cost Data Integrity")}>
+          {incompleteMovements !== undefined && (
+            <Info
+              label={tr(isArabic, "حركات FIFO غير مكتملة", "Incomplete FIFO movements")}
+              value={num(incompleteMovements)}
+            />
+          )}
+          {uncoveredOrders !== undefined && (
+            <Info
+              label={tr(isArabic, "طلبات دون تغطية تكلفة كاملة", "Orders without full cost coverage")}
+              value={num(uncoveredOrders)}
+            />
+          )}
+          {data.current.cost_complete === false && (
+            <p className="mt-3 text-sm font-semibold text-amber-700 dark:text-amber-400">
+              {tr(
+                isArabic,
+                "بيانات التكلفة غير مكتملة؛ لا تعتمد على أرقام الربح حتى تكتمل المراجعة.",
+                "Cost data is incomplete. Do not rely on profit figures until reconciliation is complete.",
+              )}
+            </p>
+          )}
+        </Panel>
+      )}
 
       <Panel title={tr(isArabic, "تنبيهات المخزون", "Inventory Alerts")}>
         {data.stock.alerts.length ? data.stock.alerts.map((item) => (
@@ -555,20 +611,26 @@ function Alerts({ data, money, num, isArabic }: DashboardProps) {
       </Panel>
 
       <Panel title={tr(isArabic, "تنبيهات تكلفة المنتجات", "Product Cost Alerts")}>
-        {uncosted.length ? uncosted.map((item) => (
-          <Info
-            key={item.name}
-            label={item.name}
-            value={tr(isArabic, "التكلفة غير مسجلة", "Cost not recorded")}
-          />
-        )) : <Empty isArabic={isArabic} />}
+        <Info
+          label={tr(isArabic, "عدد المنتجات دون تكلفة مسجلة", "Products without recorded cost")}
+          value={num(uncostedCount)}
+        />
+        {uncostedCount > 0 && (
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+            {tr(
+              isArabic,
+              "العدد يشمل كل المنتجات التي أعادها مصدر بيانات لوحة التحكم، وليس أفضل المنتجات مبيعًا فقط.",
+              "This count comes from the dashboard data source, not only the top-selling products list.",
+            )}
+          </p>
+        )}
       </Panel>
 
       <p className="text-xs text-gray-500">
         {tr(
           isArabic,
-          "هذا القسم يعرض التنبيهات المتاحة حاليًا. سجل النشاط التفصيلي سيتم إضافته في مرحلة لاحقة.",
-          "This section displays currently available alerts. A detailed activity log will be added in a later stage.",
+          "سجل النشاط التفصيلي لم يتم ربطه بعد بمصدر بيانات مؤكد.",
+          "The detailed activity log is not yet connected to a verified data source.",
         )}
       </p>
     </div>
